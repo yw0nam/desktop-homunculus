@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
-import { signals, Vrm, type TimelineKeyframe } from "@hmcs/sdk";
+import { signals, Vrm, type TimelineKeyframe, type TransformArgs, preferences, repeat, sleep } from "@hmcs/sdk";
 import { rpc } from "@hmcs/sdk/rpc";
 import { z } from "zod";
 
@@ -17,7 +17,6 @@ interface Config {
     agent_id: string;
   };
   homunculus: {
-    entity_id: number;
     api_url: string;
   };
 }
@@ -25,7 +24,6 @@ interface Config {
 function loadConfig(): Config {
   const path = resolve(__dirname, "config.yaml");
   const raw = yaml.load(readFileSync(path, "utf-8")) as Config;
-  raw.homunculus.entity_id = Number(raw.homunculus.entity_id);
   return raw;
 }
 
@@ -48,6 +46,7 @@ function nextRetryDelay(state: RetryState): number | null {
 async function handleMessage(
   event: MessageEvent,
   config: Config,
+  vrm: Vrm,
 ): Promise<void> {
   const msg = JSON.parse(event.data as string);
   switch (msg.type) {
@@ -66,7 +65,7 @@ async function handleMessage(
       });
       break;
     case "tts_chunk":
-      await handleTtsChunk(msg, config);
+      await handleTtsChunk(msg, vrm);
       break;
     case "stream_end":
       await signals.send("dm-message-complete", {
@@ -89,11 +88,10 @@ async function handleTtsChunk(
     audio_base64: string | null;
     keyframes: TimelineKeyframe[];
   },
-  config: Config,
+  vrm: Vrm,
 ): Promise<void> {
   if (msg.audio_base64) {
     const audioBytes = Buffer.from(msg.audio_base64, "base64");
-    const vrm = new Vrm(config.homunculus.entity_id);
     await vrm.speakWithTimeline(audioBytes, msg.keyframes);
   }
   await signals.send("dm-tts-chunk", {
@@ -134,6 +132,7 @@ function startRpcServer(config: Config) {
 
 async function connectWithRetry(
   config: Config,
+  vrm: Vrm,
   retryState: RetryState,
 ): Promise<void> {
   const ws = new WebSocket(config.fastapi.ws_url);
@@ -151,17 +150,18 @@ async function connectWithRetry(
   });
 
   ws.addEventListener("message", (event) => {
-    handleMessage(event, config).catch(console.error);
+    handleMessage(event, config, vrm).catch(console.error);
   });
 
   ws.addEventListener("close", async (event) => {
-    await handleClose(event, config, retryState);
+    await handleClose(event, config, vrm, retryState);
   });
 }
 
 async function handleClose(
   event: CloseEvent,
   config: Config,
+  vrm: Vrm,
   retryState: RetryState,
 ): Promise<void> {
   const code = event.code;
@@ -182,10 +182,38 @@ async function handleClose(
   }
 
   await new Promise((r) => setTimeout(r, delay));
-  await connectWithRetry(config, { attempts: retryState.attempts + 1 });
+  await connectWithRetry(config, vrm, { attempts: retryState.attempts + 1 });
 }
 
-async function connectAndServe(config: Config): Promise<void> {
+// TODO: make VRM asset configurable via UI settings
+const CHARACTER_ASSET_ID = "desktopmate-bridge:carlotta";
+
+async function spawnCharacter(): Promise<Vrm> {
+  const transform = await preferences.load<TransformArgs>(`transform::${CHARACTER_ASSET_ID}`);
+  const vrm = await Vrm.spawn(CHARACTER_ASSET_ID, { transform });
+  const animOpts = { repeat: repeat.forever(), transitionSecs: 0.5 } as const;
+
+  await vrm.playVrma({ asset: "vrma:idle-maid", ...animOpts });
+
+  vrm.events().on("state-change", async (e) => {
+    if (e.state === "idle") {
+      await vrm.playVrma({ asset: "vrma:idle-maid", ...animOpts });
+      await sleep(500);
+      await vrm.lookAtCursor();
+    } else if (e.state === "drag") {
+      await vrm.unlook();
+      await vrm.playVrma({ asset: "vrma:grabbed", ...animOpts, resetSpringBones: true });
+    } else if (e.state === "sitting") {
+      await vrm.playVrma({ asset: "vrma:idle-sitting", ...animOpts });
+      await sleep(500);
+      await vrm.lookAtCursor();
+    }
+  });
+
+  return vrm;
+}
+
+async function connectAndServe(config: Config, vrm: Vrm): Promise<void> {
   await signals.send("dm-config", {
     user_id: config.fastapi.user_id,
     agent_id: config.fastapi.agent_id,
@@ -195,9 +223,10 @@ async function connectAndServe(config: Config): Promise<void> {
   // TODO: store rpcServer and call rpcServer.stop() on graceful shutdown
   // Requires @hmcs/sdk to expose a stop() API on the returned server handle.
   await startRpcServer(config);
-  await connectWithRetry(config, { attempts: 0 });
+  await connectWithRetry(config, vrm, { attempts: 0 });
 }
 
 // --- entry point ---
 const config = loadConfig();
-await connectAndServe(config);
+const vrm = await spawnCharacter();              // VRM spawned first
+connectAndServe(config, vrm).catch(console.error); // fire-and-forget: WS + RPC
