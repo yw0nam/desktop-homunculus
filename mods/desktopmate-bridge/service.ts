@@ -52,9 +52,11 @@ async function handleMessage(
   const msg = JSON.parse(event.data as string);
   switch (msg.type) {
     case "authorize_success":
+      _connectionId = (msg.connection_id as string | undefined) ?? null;
       await signals.send("dm-connection-status", { status: "connected" });
       break;
     case "authorize_error":
+      _authFailed = true;
       await signals.send("dm-connection-status", { status: "disconnected" });
       break;
     case "stream_start":
@@ -102,6 +104,8 @@ async function handleTtsChunk(
 }
 
 let _ws: WebSocket | null = null;
+let _connectionId: string | null = null;
+let _authFailed = false;
 
 function sendWsMessage(payload: unknown): void {
   if (_ws?.readyState === WebSocket.OPEN) {
@@ -162,14 +166,14 @@ async function handleClose(
 ): Promise<void> {
   const code = event.code;
 
-  if (code === 4001) {
+  // 4001 or authorize_error already sent disconnected signal
+  if (code === 4001 || _authFailed) return;
+  // spec: 4002 wait stream_end, 4003 normal close, 4004 no-op
+  if (code === 4002 || code === 4003 || code === 4004) return;
+  if (!shouldRetry(code)) {
     await signals.send("dm-connection-status", { status: "disconnected" });
     return;
   }
-  if (code === 4002 || code === 4003 || code === 4004) {
-    return;
-  }
-  if (!shouldRetry(code)) return;
 
   const delay = nextRetryDelay(retryState);
   if (delay === null) {
@@ -188,9 +192,10 @@ async function connectAndServe(config: Config): Promise<void> {
     fastapi_rest_url: config.fastapi.rest_url,
   });
 
-  const rpcServer = await startRpcServer(config);
+  // TODO: store rpcServer and call rpcServer.stop() on graceful shutdown
+  // Requires @hmcs/sdk to expose a stop() API on the returned server handle.
+  await startRpcServer(config);
   await connectWithRetry(config, { attempts: 0 });
-  return;
 }
 
 // --- entry point ---

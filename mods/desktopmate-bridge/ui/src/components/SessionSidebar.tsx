@@ -34,6 +34,7 @@ export function SessionSidebar() {
   }
 
   async function handleDelete(sessionId: string) {
+    if (!confirm("이 세션을 삭제하시겠습니까?")) return;
     await deleteSession(
       settings.fastapi_rest_url,
       sessionId,
