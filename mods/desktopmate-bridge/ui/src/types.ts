@@ -1,0 +1,23 @@
+export interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
+  /** true if still streaming (tts_chunk 수신 중) */
+  streaming?: boolean;
+}
+
+export interface Session {
+  session_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DmConfig {
+  user_id: string;
+  agent_id: string;
+  fastapi_rest_url: string;
+}
+
+export type ConnectionStatus = "connected" | "disconnected" | "restart-required";
