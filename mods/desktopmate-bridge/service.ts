@@ -188,6 +188,25 @@ async function handleClose(
 // TODO: make VRM asset configurable via UI settings
 const CHARACTER_ASSET_ID = "desktopmate-bridge:carlotta";
 
+async function handleVrmStateChange(
+  e: { state: string },
+  vrm: Vrm,
+  animOpts: { repeat: ReturnType<typeof repeat.forever>; transitionSecs: number },
+): Promise<void> {
+  if (e.state === "idle") {
+    await vrm.playVrma({ asset: "vrma:idle-maid", ...animOpts });
+    await sleep(500);
+    await vrm.lookAtCursor();
+  } else if (e.state === "drag") {
+    await vrm.unlook();
+    await vrm.playVrma({ asset: "vrma:grabbed", ...animOpts, resetSpringBones: true });
+  } else if (e.state === "sitting") {
+    await vrm.playVrma({ asset: "vrma:idle-sitting", ...animOpts });
+    await sleep(500);
+    await vrm.lookAtCursor();
+  }
+}
+
 async function spawnCharacter(): Promise<Vrm> {
   const transform = await preferences.load<TransformArgs>(`transform::${CHARACTER_ASSET_ID}`);
   const vrm = await Vrm.spawn(CHARACTER_ASSET_ID, { transform });
@@ -195,20 +214,9 @@ async function spawnCharacter(): Promise<Vrm> {
 
   await vrm.playVrma({ asset: "vrma:idle-maid", ...animOpts });
 
-  vrm.events().on("state-change", async (e) => {
-    if (e.state === "idle") {
-      await vrm.playVrma({ asset: "vrma:idle-maid", ...animOpts });
-      await sleep(500);
-      await vrm.lookAtCursor();
-    } else if (e.state === "drag") {
-      await vrm.unlook();
-      await vrm.playVrma({ asset: "vrma:grabbed", ...animOpts, resetSpringBones: true });
-    } else if (e.state === "sitting") {
-      await vrm.playVrma({ asset: "vrma:idle-sitting", ...animOpts });
-      await sleep(500);
-      await vrm.lookAtCursor();
-    }
-  });
+  vrm.events().on("state-change", (e) =>
+    handleVrmStateChange(e, vrm, animOpts).catch(console.error),
+  );
 
   return vrm;
 }
