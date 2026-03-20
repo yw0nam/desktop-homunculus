@@ -8,23 +8,33 @@
     "build:ui": "pnpm --filter @hmcs/desktopmate-bridge-ui build",
     "dev:ui": "pnpm --filter @hmcs/desktopmate-bridge-ui dev",
     "mock": "node --import tsx scripts/mock-homunculus.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "FASTAPI_URL=http://localhost:5500 vitest run -c vitest.e2e.config.ts"
   },
   "homunculus": {
     "service": "service.ts",
     "menus": [
       {
-        "label": "Chat",
-        "asset": "desktopmate-bridge:chat-ui"
+        "id": "open-desktopmate-chat",
+        "text": "Chat",
+        "command": "open-chat"
       }
     ],
     "assets": {
+      "desktopmate-bridge:carlotta": {
+        "path": "vrm/Carlotta.vrm",
+        "type": "vrm",
+        "description": "Carlotta VRM character for DesktopMate+"
+      },
       "desktopmate-bridge:chat-ui": {
         "path": "ui/dist/index.html",
         "type": "html",
         "description": "DesktopMate+ chat UI"
       }
     }
+  },
+  "bin": {
+    "open-chat": "commands/open-chat.ts"
   },
   "dependencies": {
     "@hmcs/sdk": "workspace:*",

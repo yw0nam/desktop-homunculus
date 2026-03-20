@@ -5,5 +5,4 @@ fastapi:
   user_id: "default"
   agent_id: "yuri"
 homunculus:
-  entity_id: 0  # Bevy ECS entity ID (number). 실제 값은 런타임에 확인 후 입력.
   api_url: "http://localhost:3100"
