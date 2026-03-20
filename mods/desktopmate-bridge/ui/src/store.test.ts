@@ -68,3 +68,34 @@ describe("store — isTyping", () => {
     expect(useStore.getState().isTyping).toBe(false);
   });
 });
+
+describe("store — appendStreamChunk isolation", () => {
+  it("chunks for a different turnId do not affect unrelated messages", () => {
+    useStore.getState().startStreaming("turn-A", "sess-1");
+    useStore.getState().startStreaming("turn-B", "sess-1");
+    useStore.getState().appendStreamChunk("turn-A", "Hello");
+    useStore.getState().appendStreamChunk("turn-B", "World");
+    const msgs = useStore.getState().messages;
+    const msgA = msgs.find((m) => m.id === "turn-A")!;
+    const msgB = msgs.find((m) => m.id === "turn-B")!;
+    expect(msgA.content).toBe("Hello");
+    expect(msgB.content).toBe("World");
+  });
+});
+
+describe("store — session switch", () => {
+  it("setActiveSession clears messages", () => {
+    useStore.getState().addUserMessage("old message");
+    expect(useStore.getState().messages).toHaveLength(1);
+    useStore.getState().setActiveSession("new-session-id");
+    expect(useStore.getState().messages).toHaveLength(0);
+    expect(useStore.getState().activeSessionId).toBe("new-session-id");
+  });
+});
+
+describe("store — restart-required status", () => {
+  it("setConnectionStatus restart-required reflects in store", () => {
+    useStore.getState().setConnectionStatus("restart-required");
+    expect(useStore.getState().connectionStatus).toBe("restart-required");
+  });
+});
