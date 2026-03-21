@@ -8,6 +8,13 @@ async function apiFetch(
   return fetch(`${restUrl}${path}`, init);
 }
 
+interface BackendSession {
+  session_id: string;
+  created_at: string;
+  updated_at: string;
+  metadata: Record<string, unknown>;
+}
+
 export async function fetchSessions(
   restUrl: string,
   userId: string,
@@ -18,7 +25,18 @@ export async function fetchSessions(
     `/v1/stm/sessions?user_id=${userId}&agent_id=${agentId}`,
   );
   if (!res.ok) throw new Error(`fetchSessions failed: ${res.status}`);
-  return res.json();
+  const data = await res.json() as { sessions: BackendSession[] };
+  return data.sessions.map((s) => ({
+    session_id: s.session_id,
+    name: (s.metadata?.name as string | undefined) ?? s.session_id.slice(0, 12),
+    created_at: s.created_at,
+    updated_at: s.updated_at,
+  }));
+}
+
+interface BackendMessage {
+  role: "user" | "assistant";
+  content: string;
 }
 
 export async function fetchChatHistory(
@@ -32,7 +50,15 @@ export async function fetchChatHistory(
     `/v1/stm/get-chat-history?session_id=${sessionId}&user_id=${userId}&agent_id=${agentId}`,
   );
   if (!res.ok) throw new Error(`fetchChatHistory failed: ${res.status}`);
-  return res.json();
+  const data = await res.json() as { messages: BackendMessage[] };
+  return data.messages
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({
+      id: crypto.randomUUID(),
+      role: m.role,
+      content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+      timestamp: Date.now(),
+    }));
 }
 
 export async function deleteSession(

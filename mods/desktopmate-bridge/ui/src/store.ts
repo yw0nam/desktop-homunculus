@@ -41,8 +41,9 @@ export const useStore = create<StoreState>((set) => ({
       ],
     })),
 
-  startStreaming: (turnId, _sessionId) =>
+  startStreaming: (turnId, sessionId) =>
     set((s) => ({
+      activeSessionId: sessionId,
       isTyping: true,
       messages: [
         ...s.messages,

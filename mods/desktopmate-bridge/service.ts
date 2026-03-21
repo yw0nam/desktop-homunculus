@@ -116,7 +116,13 @@ function startRpcServer(config: Config) {
     description: "Send chat message via FastAPI WebSocket",
     input: z.object({ content: z.string(), session_id: z.string().optional() }),
     handler: async ({ content, session_id }) => {
-      sendWsMessage({ type: "chat_message", content, session_id });
+      sendWsMessage({
+        type: "chat_message",
+        content,
+        session_id,
+        user_id: config.fastapi.user_id,
+        agent_id: config.fastapi.agent_id,
+      });
       return { ok: true };
     },
   });
@@ -186,7 +192,7 @@ async function handleClose(
 }
 
 // TODO: make VRM asset configurable via UI settings
-const CHARACTER_ASSET_ID = "desktopmate-bridge:carlotta";
+const CHARACTER_ASSET_ID = "desktopmate-bridge:elmer";
 
 async function handleVrmStateChange(
   e: { state: string },

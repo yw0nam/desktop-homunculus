@@ -123,7 +123,7 @@ WebView sources can be URLs, inline HTML, or local mod assets using `{ "type": "
 
 Mods are pnpm workspace packages. Each mod's `package.json` must include a `"homunculus"` field declaring:
 - **assets**: Objects with `path`, `type` (`vrm`, `vrma`, `sound`, `image`, `html`), and `description`. Asset IDs use format `"mod-name:asset-id"`.
-- **menus** (optional): Right-click context menu entries that can open webviews.
+- **menus** (optional): Right-click context menu entries. Each entry: `{ "id": string, "text": string, "command": string }` — `command` maps to a `bin` entry name. Global panel commands do NOT call `input.parseMenu()`; per-VRM commands do.
 - **tray** (optional): System tray menu entries (distinct from `menus`). Processed by `homunculus_tray` via `bevy_tray_icon`.
 
 The `"homunculus.service"` script runs automatically as a long-running child process (service) at startup using `node --import tsx` (TypeScript files run directly without a build step; tsx is installed locally in the mods directory by `ensure_tsx()`). MOD commands are exposed via `"bin"` and invoked through the HTTP API (`POST /mods/{mod_name}/bin/{command}`). Mods use the `@hmcs/sdk` SDK.

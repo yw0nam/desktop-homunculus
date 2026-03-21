@@ -21,10 +21,10 @@
       }
     ],
     "assets": {
-      "desktopmate-bridge:carlotta": {
-        "path": "vrm/Carlotta.vrm",
+      "desktopmate-bridge:elmer": {
+        "path": "vrm/Elmer.vrm",
         "type": "vrm",
-        "description": "Carlotta VRM character for DesktopMate+"
+        "description": "Elmer VRM character for DesktopMate+"
       },
       "desktopmate-bridge:chat-ui": {
         "path": "ui/dist/index.html",
