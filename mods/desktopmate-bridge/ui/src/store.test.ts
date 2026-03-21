@@ -8,7 +8,15 @@ beforeEach(() => {
     activeSessionId: null,
     isTyping: false,
     connectionStatus: "disconnected",
-    settings: { user_id: "", agent_id: "", fastapi_rest_url: "" },
+    settings: {
+      user_id: "",
+      agent_id: "",
+      fastapi_rest_url: "",
+      fastapi_ws_url: "",
+      fastapi_token: "",
+      homunculus_api_url: "",
+      tts_reference_id: "",
+    },
   });
 });
 
@@ -36,6 +44,15 @@ describe("store — messages", () => {
     expect(useStore.getState().messages).toHaveLength(1);
     expect(useStore.getState().messages[0].role).toBe("user");
   });
+
+  it("setMessages replaces all messages", () => {
+    useStore.getState().addUserMessage("existing");
+    const newMessages = [
+      { id: "a", role: "user" as const, content: "new", timestamp: 1000 },
+    ];
+    useStore.getState().setMessages(newMessages);
+    expect(useStore.getState().messages).toEqual(newMessages);
+  });
 });
 
 describe("store — connectionStatus", () => {
@@ -51,6 +68,10 @@ describe("store — settings", () => {
       user_id: "alice",
       agent_id: "yuri",
       fastapi_rest_url: "http://localhost:5500",
+      fastapi_ws_url: "ws://localhost:5500/v1/chat/stream",
+      fastapi_token: "tok",
+      homunculus_api_url: "http://localhost:3100",
+      tts_reference_id: "speaker_001",
     });
     expect(useStore.getState().settings.user_id).toBe("alice");
   });

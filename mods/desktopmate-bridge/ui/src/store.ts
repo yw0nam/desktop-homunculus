@@ -15,6 +15,7 @@ interface StoreState {
   finalizeMessage: (turnId: string, content: string) => void;
   setSessions: (sessions: Session[]) => void;
   setActiveSession: (sessionId: string | null) => void;
+  setMessages: (messages: Message[]) => void;
   clearMessages: () => void;
   setConnectionStatus: (status: ConnectionStatus) => void;
   setSettings: (settings: DmConfig) => void;
@@ -26,7 +27,15 @@ export const useStore = create<StoreState>((set) => ({
   activeSessionId: null,
   isTyping: false,
   connectionStatus: "disconnected",
-  settings: { user_id: "", agent_id: "", fastapi_rest_url: "" },
+  settings: {
+    user_id: "",
+    agent_id: "",
+    fastapi_rest_url: "",
+    fastapi_ws_url: "",
+    fastapi_token: "",
+    homunculus_api_url: "",
+    tts_reference_id: "",
+  },
 
   addUserMessage: (content) =>
     set((s) => ({
@@ -75,6 +84,7 @@ export const useStore = create<StoreState>((set) => ({
   setSessions: (sessions) => set({ sessions }),
   setActiveSession: (sessionId) =>
     set({ activeSessionId: sessionId, messages: [] }),
+  setMessages: (messages) => set({ messages }),
   clearMessages: () => set({ messages: [] }),
   setConnectionStatus: (status) => set({ connectionStatus: status }),
   setSettings: (settings) => set({ settings }),
