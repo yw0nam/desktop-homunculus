@@ -18,6 +18,10 @@ export interface DmConfig {
   user_id: string;
   agent_id: string;
   fastapi_rest_url: string;
+  fastapi_ws_url: string;
+  fastapi_token: string;
+  homunculus_api_url: string;
+  tts_reference_id: string;
 }
 
 export type ConnectionStatus = "connected" | "disconnected" | "restart-required";

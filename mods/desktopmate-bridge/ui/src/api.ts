@@ -1,4 +1,5 @@
-import type { Session, Message } from "./types";
+import { rpc } from "@hmcs/sdk/rpc";
+import type { Session, Message, DmConfig } from "./types";
 
 async function apiFetch(
   restUrl: string,
@@ -37,6 +38,7 @@ export async function fetchSessions(
 interface BackendMessage {
   role: "user" | "assistant";
   content: string;
+  created_at?: string;
 }
 
 export async function fetchChatHistory(
@@ -57,7 +59,7 @@ export async function fetchChatHistory(
       id: crypto.randomUUID(),
       role: m.role,
       content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
-      timestamp: Date.now(),
+      timestamp: m.created_at ? new Date(m.created_at).getTime() : Date.now(),
     }));
 }
 
@@ -92,8 +94,6 @@ export async function patchSessionName(
   if (!res.ok) throw new Error(`patchSessionName failed: ${res.status}`);
 }
 
-import { rpc } from "@hmcs/sdk/rpc";
-
 export async function sendChatMessage(
   sessionId: string | undefined,
   content: string,
@@ -109,5 +109,13 @@ export async function interruptStream(): Promise<void> {
   await rpc.call({
     modName: "@hmcs/desktopmate-bridge",
     method: "interruptStream",
+  });
+}
+
+export async function updateConfig(config: DmConfig): Promise<void> {
+  await rpc.call({
+    modName: "@hmcs/desktopmate-bridge",
+    method: "updateConfig",
+    body: config,
   });
 }
