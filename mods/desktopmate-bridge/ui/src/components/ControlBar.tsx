@@ -12,6 +12,12 @@ interface ControlBarProps {
 
 const DRAG_SCALE = 0.002;
 
+const STATUS_LABELS = {
+  connected: "✔ Connected",
+  disconnected: "✖ Disconnected",
+  "restart-required": "⚠ Restart required",
+} satisfies Record<ConnectionStatus, string>;
+
 export function ControlBar({
   onToggleChat,
   onToggleSidebar,
@@ -26,12 +32,6 @@ export function ControlBar({
     startY: number;
     startOffset: [number, number];
   } | null>(null);
-
-  const STATUS_LABELS = {
-    connected: "✔ Connected",
-    disconnected: "✖ Disconnected",
-    "restart-required": "⚠ Restart required",
-  } satisfies Record<ConnectionStatus, string>;
 
   const statusLabel = STATUS_LABELS[connectionStatus];
 
