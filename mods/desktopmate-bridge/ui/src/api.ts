@@ -99,7 +99,7 @@ export async function sendChatMessage(
   content: string,
 ): Promise<void> {
   await rpc.call({
-    modName: "desktopmate-bridge",
+    modName: "@hmcs/desktopmate-bridge",
     method: "sendMessage",
     body: { content, session_id: sessionId },
   });
@@ -107,7 +107,7 @@ export async function sendChatMessage(
 
 export async function interruptStream(): Promise<void> {
   await rpc.call({
-    modName: "desktopmate-bridge",
+    modName: "@hmcs/desktopmate-bridge",
     method: "interruptStream",
   });
 }
