@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
@@ -7,6 +7,7 @@ import { rpc } from "@hmcs/sdk/rpc";
 import { z } from "zod";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const CONFIG_PATH = resolve(__dirname, "config.yaml");
 
 interface Config {
   fastapi: {
@@ -19,11 +20,13 @@ interface Config {
   homunculus: {
     api_url: string;
   };
+  tts: {
+    reference_id: string;
+  };
 }
 
 function loadConfig(): Config {
-  const path = resolve(__dirname, "config.yaml");
-  const raw = yaml.load(readFileSync(path, "utf-8")) as Config;
+  const raw = yaml.load(readFileSync(CONFIG_PATH, "utf-8")) as Config;
   return raw;
 }
 
@@ -133,7 +136,33 @@ function startRpcServer(config: Config) {
       return { ok: true };
     },
   });
-  return rpc.serve({ methods: { sendMessage, interruptStream } });
+  const updateConfig = rpc.method({
+    description: "Update config fields and write back to config.yaml",
+    input: z.object({
+      user_id: z.string(),
+      agent_id: z.string(),
+      fastapi_rest_url: z.string(),
+      fastapi_ws_url: z.string(),
+      fastapi_token: z.string(),
+      homunculus_api_url: z.string(),
+      tts_reference_id: z.string(),
+    }),
+    // JS objects are reference-passed, so mutating `config` here updates the same
+    // object held by `connectAndServe` — changes take effect for subsequent operations.
+    handler: async (input) => {
+      config.fastapi.user_id = input.user_id;
+      config.fastapi.agent_id = input.agent_id;
+      config.fastapi.rest_url = input.fastapi_rest_url;
+      config.fastapi.ws_url = input.fastapi_ws_url;
+      config.fastapi.token = input.fastapi_token;
+      config.homunculus.api_url = input.homunculus_api_url;
+      config.tts.reference_id = input.tts_reference_id;
+      writeFileSync(CONFIG_PATH, yaml.dump(config), "utf-8");
+      await broadcastConfig(config);
+      return { ok: true };
+    },
+  });
+  return rpc.serve({ methods: { sendMessage, interruptStream, updateConfig } });
 }
 
 async function connectWithRetry(
@@ -227,12 +256,20 @@ async function spawnCharacter(): Promise<Vrm> {
   return vrm;
 }
 
-async function connectAndServe(config: Config, vrm: Vrm): Promise<void> {
+async function broadcastConfig(config: Config): Promise<void> {
   await signals.send("dm-config", {
     user_id: config.fastapi.user_id,
     agent_id: config.fastapi.agent_id,
     fastapi_rest_url: config.fastapi.rest_url,
+    fastapi_ws_url: config.fastapi.ws_url,
+    fastapi_token: config.fastapi.token,
+    homunculus_api_url: config.homunculus.api_url,
+    tts_reference_id: config.tts.reference_id,
   });
+}
+
+async function connectAndServe(config: Config, vrm: Vrm): Promise<void> {
+  await broadcastConfig(config);
 
   // TODO: store rpcServer and call rpcServer.stop() on graceful shutdown
   // Requires @hmcs/sdk to expose a stop() API on the returned server handle.

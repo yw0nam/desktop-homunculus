@@ -6,3 +6,5 @@ fastapi:
   agent_id: "yuri"
 homunculus:
   api_url: "http://localhost:3100"
+tts:
+  reference_id: ""
