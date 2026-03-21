@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import { Webview } from "@hmcs/sdk";
 import { useStore } from "../store";
 import { sendChatMessage, interruptStream } from "../api";
+import type { ConnectionStatus } from "../types";
 
 interface ControlBarProps {
   onToggleChat: () => void;
@@ -26,11 +27,13 @@ export function ControlBar({
     startOffset: [number, number];
   } | null>(null);
 
-  const statusLabel = {
+  const STATUS_LABELS = {
     connected: "✔ Connected",
     disconnected: "✖ Disconnected",
     "restart-required": "⚠ Restart required",
-  }[connectionStatus];
+  } satisfies Record<ConnectionStatus, string>;
+
+  const statusLabel = STATUS_LABELS[connectionStatus];
 
   async function handleSend() {
     if (!input.trim() || isTyping) return;
@@ -45,7 +48,11 @@ export function ControlBar({
   }
 
   async function handleStop() {
-    await interruptStream();
+    try {
+      await interruptStream();
+    } catch {
+      // engine unavailable
+    }
   }
 
   async function handleDragStart(e: React.MouseEvent) {
@@ -65,7 +72,7 @@ export function ControlBar({
     }
   }
 
-  function handleDragMove(e: MouseEvent) {
+  const handleDragMove = useCallback((e: MouseEvent) => {
     if (!dragState.current) return;
     const wv = Webview.current();
     if (!wv) return;
@@ -75,13 +82,13 @@ export function ControlBar({
       dragState.current.startOffset[0] + dx,
       dragState.current.startOffset[1] - dy,
     ]).catch(() => {});
-  }
+  }, []);
 
-  function handleDragEnd() {
+  const handleDragEnd = useCallback(() => {
     dragState.current = null;
     window.removeEventListener("mousemove", handleDragMove);
     window.removeEventListener("mouseup", handleDragEnd);
-  }
+  }, [handleDragMove]);
 
   return (
     <div className="flex flex-col gap-1 px-2 py-1 bg-black/30 backdrop-blur-sm border-t border-white/10">
