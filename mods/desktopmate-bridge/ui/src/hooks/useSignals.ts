@@ -61,5 +61,9 @@ export function useSignals(): void {
     ];
 
     return () => cleanups.forEach((fn) => fn());
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Empty deps is intentional: handlers close over store actions (stable refs) and
+  // read fresh state via useStore.getState() — re-subscribing on every render would
+  // cause duplicate SSE connections.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 }
