@@ -7,24 +7,22 @@ import { SettingsPanel } from "./components/SettingsPanel";
 
 export function App() {
   const [showSidebar, setShowSidebar] = useState(false);
-  const [showChat, setShowChat] = useState(true);
+  const [showChat, setShowChat] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   useSignals();
 
-  return (
-    <div className="w-full h-full flex flex-col bg-black/20 backdrop-blur-sm text-white">
-      {/* 상단 패널 영역 */}
-      <div className="flex-1 flex overflow-hidden">
-        {showSidebar && <SessionSidebar />}
-        {showChat && <ChatWindow />}
-        {showSettings && <SettingsPanel />}
-        {!showSidebar && !showChat && !showSettings && (
-          <div className="flex-1" />
-        )}
-      </div>
+  const anyPanelOpen = showSidebar || showChat || showSettings;
 
-      {/* 하단 컨트롤 바 */}
+  return (
+    <div className="w-full flex flex-col text-white">
+      {anyPanelOpen && (
+        <div className="flex overflow-hidden max-h-[350px] bg-black/20 backdrop-blur-sm">
+          {showSidebar && <SessionSidebar />}
+          {showChat && <ChatWindow />}
+          {showSettings && <SettingsPanel />}
+        </div>
+      )}
       <ControlBar
         onToggleSidebar={() => setShowSidebar((v) => !v)}
         onToggleChat={() => setShowChat((v) => !v)}
