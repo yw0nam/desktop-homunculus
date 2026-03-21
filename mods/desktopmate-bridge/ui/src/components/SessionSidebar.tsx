@@ -12,6 +12,7 @@ export function SessionSidebar() {
     sessions,
     activeSessionId,
     setActiveSession,
+    setMessages,
     setSessions,
     settings,
   } = useStore();
@@ -26,31 +27,39 @@ export function SessionSidebar() {
       settings.user_id,
       settings.agent_id,
     ).catch(() => []);
-    useStore.setState({ messages: history });
+    setMessages(history);
   }
 
-  async function handleNewChat() {
+  function handleNewChat() {
     setActiveSession(null);
   }
 
   async function handleDelete(sessionId: string) {
-    if (!confirm("이 세션을 삭제하시겠습니까?")) return;
-    await deleteSession(
-      settings.fastapi_rest_url,
-      sessionId,
-      settings.user_id,
-      settings.agent_id,
-    );
-    const updated = await fetchSessions(
-      settings.fastapi_rest_url,
-      settings.user_id,
-      settings.agent_id,
-    ).catch(() => sessions);
-    setSessions(updated);
+    if (!confirm("Delete this session?")) return;
+    try {
+      await deleteSession(
+        settings.fastapi_rest_url,
+        sessionId,
+        settings.user_id,
+        settings.agent_id,
+      );
+      const updated = await fetchSessions(
+        settings.fastapi_rest_url,
+        settings.user_id,
+        settings.agent_id,
+      );
+      setSessions(updated);
+    } catch {
+      alert("Failed to delete session.");
+    }
   }
 
   async function handleRenameCommit(sessionId: string) {
-    await patchSessionName(settings.fastapi_rest_url, sessionId, editName);
+    try {
+      await patchSessionName(settings.fastapi_rest_url, sessionId, editName);
+    } catch {
+      // silently revert
+    }
     setEditingId(null);
     const updated = await fetchSessions(
       settings.fastapi_rest_url,
@@ -88,7 +97,7 @@ export function SessionSidebar() {
             ) : (
               <>
                 <div className="text-white text-xs truncate">{s.name}</div>
-                <div className="flex gap-1 mt-0.5">
+                <div className="flex gap-1 mt-0.5 items-center">
                   <button
                     className="text-white/40 text-[10px] hover:text-white"
                     onClick={(e) => {
@@ -108,9 +117,14 @@ export function SessionSidebar() {
                   >
                     🗑
                   </button>
-                  <span className="text-white/20 text-[10px] ml-auto">
-                    {new Date(s.updated_at).toLocaleDateString()}
-                  </span>
+                  <div className="ml-auto text-right">
+                    <div className="text-white/20 text-[10px]">
+                      {new Date(s.updated_at).toLocaleDateString()}
+                    </div>
+                    <div className="text-white/15 text-[9px]">
+                      {new Date(s.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
                 </div>
               </>
             )}
