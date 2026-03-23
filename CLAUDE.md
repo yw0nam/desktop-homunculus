@@ -128,6 +128,8 @@ Mods are pnpm workspace packages. Each mod's `package.json` must include a `"hom
 
 The `"homunculus.service"` script runs automatically as a long-running child process (service) at startup using `node --import tsx` (TypeScript files run directly without a build step; tsx is installed locally in the mods directory by `ensure_tsx()`). MOD commands are exposed via `"bin"` and invoked through the HTTP API (`POST /mods/{mod_name}/bin/{command}`). Mods use the `@hmcs/sdk` SDK.
 
+**Mod UI React pattern**: Event handlers registered via `window.addEventListener` inside React components must be wrapped in `useCallback` to prevent listener leaks — component re-renders produce new function objects and `removeEventListener` uses reference equality.
+
 **Mod discovery**: The engine runs `pnpm ls --parseable` in the mods directory (`~/.homunculus/mods/`) to discover installed mods, then reads each mod's `package.json` directly.
 
 Source mods live in `mods/` (in the repo, for development). At runtime, mods are installed to `~/.homunculus/mods/` (configurable via `config.toml` `mods_dir` field). The built-in `@hmcs/assets` mod provides default VRMA animations (`vrma:idle-maid`, `vrma:grabbed`, `vrma:idle-sitting`) and sound effects (`se:open`, `se:close`).
