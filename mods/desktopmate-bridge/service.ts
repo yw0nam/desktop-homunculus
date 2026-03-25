@@ -55,10 +55,12 @@ async function handleMessage(
   switch (msg.type) {
     case "authorize_success":
       _connectionId = (msg.connection_id as string | undefined) ?? null;
+      _connectionStatus = "connected";
       await signals.send("dm-connection-status", { status: "connected" });
       break;
     case "authorize_error":
       _authFailed = true;
+      _connectionStatus = "disconnected";
       await signals.send("dm-connection-status", { status: "disconnected" });
       break;
     case "stream_start":
@@ -107,6 +109,7 @@ async function handleTtsChunk(
 let _ws: WebSocket | null = null;
 let _connectionId: string | null = null;
 let _authFailed = false;
+let _connectionStatus: "connected" | "disconnected" | "restart-required" = "disconnected";
 
 function sendWsMessage(payload: unknown): void {
   if (_ws?.readyState === WebSocket.OPEN) {
@@ -125,6 +128,7 @@ function startRpcServer(config: Config) {
         session_id,
         user_id: config.fastapi.user_id,
         agent_id: config.fastapi.agent_id,
+        reference_id: config.tts.reference_id || undefined,
       });
       return { ok: true };
     },
@@ -162,7 +166,22 @@ function startRpcServer(config: Config) {
       return { ok: true };
     },
   });
-  return rpc.serve({ methods: { sendMessage, interruptStream, updateConfig } });
+  const getStatus = rpc.method({
+    description: "Get current connection status and config",
+    handler: async () => ({
+      status: _connectionStatus,
+      config: {
+        user_id: config.fastapi.user_id,
+        agent_id: config.fastapi.agent_id,
+        fastapi_rest_url: config.fastapi.rest_url,
+        fastapi_ws_url: config.fastapi.ws_url,
+        fastapi_token: config.fastapi.token,
+        homunculus_api_url: config.homunculus.api_url,
+        tts_reference_id: config.tts.reference_id,
+      },
+    }),
+  });
+  return rpc.serve({ methods: { sendMessage, interruptStream, updateConfig, getStatus } });
 }
 
 async function connectWithRetry(
@@ -206,12 +225,14 @@ async function handleClose(
   // spec: 4002 wait stream_end, 4003 normal close, 4004 no-op
   if (code === 4002 || code === 4003 || code === 4004) return;
   if (!shouldRetry(code)) {
+    _connectionStatus = "disconnected";
     await signals.send("dm-connection-status", { status: "disconnected" });
     return;
   }
 
   const delay = nextRetryDelay(retryState);
   if (delay === null) {
+    _connectionStatus = "restart-required";
     await signals.send("dm-connection-status", { status: "restart-required" });
     return;
   }

@@ -1,5 +1,5 @@
 import { rpc } from "@hmcs/sdk/rpc";
-import type { Session, Message, DmConfig } from "./types";
+import type { Session, Message, DmConfig, ConnectionStatus } from "./types";
 
 async function apiFetch(
   restUrl: string,
@@ -117,5 +117,12 @@ export async function updateConfig(config: DmConfig): Promise<void> {
     modName: "@hmcs/desktopmate-bridge",
     method: "updateConfig",
     body: config,
+  });
+}
+
+export async function getStatus(): Promise<{ status: ConnectionStatus; config: DmConfig }> {
+  return rpc.call({
+    modName: "@hmcs/desktopmate-bridge",
+    method: "getStatus",
   });
 }

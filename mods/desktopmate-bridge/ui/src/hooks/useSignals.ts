@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { signals } from "@hmcs/sdk";
 import { useStore } from "../store";
-import { fetchSessions } from "../api";
+import { fetchSessions, getStatus } from "../api";
 import type { DmConfig, ConnectionStatus } from "../types";
 
 function subscribe<T>(
@@ -17,6 +17,18 @@ export function useSignals(): void {
     useStore();
 
   useEffect(() => {
+    getStatus()
+      .then(({ status, config }) => {
+        setConnectionStatus(status);
+        setSettings(config);
+        if (config.fastapi_rest_url) {
+          fetchSessions(config.fastapi_rest_url, config.user_id, config.agent_id)
+            .then(setSessions)
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
+
     const cleanups = [
       subscribe<DmConfig>("dm-config", async (cfg) => {
         setSettings(cfg);
