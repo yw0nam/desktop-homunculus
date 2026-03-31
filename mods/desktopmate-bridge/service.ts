@@ -52,7 +52,13 @@ async function handleMessage(
   event: MessageEvent,
   config: Config,
 ): Promise<void> {
-  const msg = JSON.parse(event.data as string);
+  let msg: Record<string, unknown>;
+  try {
+    msg = JSON.parse(event.data as string) as Record<string, unknown>;
+  } catch {
+    await signals.send("dm-connection-status", { status: "error" } as never);
+    return;
+  }
   switch (msg.type) {
     case "authorize_success":
       _connectionId = (msg.connection_id as string | undefined) ?? null;
@@ -215,6 +221,7 @@ async function connectWithRetry(
   vrm: Vrm,
   retryState: RetryState,
 ): Promise<void> {
+  if (_ws) _ws.onclose = null;
   const ws = new WebSocket(config.fastapi.ws_url);
   _ws = ws;
 
