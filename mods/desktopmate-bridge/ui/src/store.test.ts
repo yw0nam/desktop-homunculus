@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import type { WindowInfo } from "./types";
 import { useStore } from "./store";
 
 beforeEach(() => {
@@ -8,6 +9,10 @@ beforeEach(() => {
     activeSessionId: null,
     isTyping: false,
     connectionStatus: "disconnected",
+    captureEnabled: false,
+    captureMode: "fullscreen",
+    selectedWindowId: null,
+    windowList: [],
     settings: {
       user_id: "",
       agent_id: "",
@@ -118,5 +123,53 @@ describe("store — restart-required status", () => {
   it("setConnectionStatus restart-required reflects in store", () => {
     useStore.getState().setConnectionStatus("restart-required");
     expect(useStore.getState().connectionStatus).toBe("restart-required");
+  });
+});
+
+describe("store — capture state", () => {
+  it("initial captureEnabled is false", () => {
+    expect(useStore.getState().captureEnabled).toBe(false);
+  });
+
+  it("initial captureMode is fullscreen", () => {
+    expect(useStore.getState().captureMode).toBe("fullscreen");
+  });
+
+  it("initial selectedWindowId is null", () => {
+    expect(useStore.getState().selectedWindowId).toBeNull();
+  });
+
+  it("initial windowList is empty", () => {
+    expect(useStore.getState().windowList).toEqual([]);
+  });
+
+  it("setCaptureEnabled toggles capture on/off", () => {
+    useStore.getState().setCaptureEnabled(true);
+    expect(useStore.getState().captureEnabled).toBe(true);
+    useStore.getState().setCaptureEnabled(false);
+    expect(useStore.getState().captureEnabled).toBe(false);
+  });
+
+  it("setCaptureMode switches between fullscreen and window", () => {
+    useStore.getState().setCaptureMode("window");
+    expect(useStore.getState().captureMode).toBe("window");
+    useStore.getState().setCaptureMode("fullscreen");
+    expect(useStore.getState().captureMode).toBe("fullscreen");
+  });
+
+  it("setSelectedWindowId stores the selected window id", () => {
+    useStore.getState().setSelectedWindowId(42);
+    expect(useStore.getState().selectedWindowId).toBe(42);
+    useStore.getState().setSelectedWindowId(null);
+    expect(useStore.getState().selectedWindowId).toBeNull();
+  });
+
+  it("setWindowList replaces the window list", () => {
+    const windows: WindowInfo[] = [
+      { id: 1, title: "VSCode", appName: "Code" },
+      { id: 2, title: "Terminal", appName: "iTerm2" },
+    ];
+    useStore.getState().setWindowList(windows);
+    expect(useStore.getState().windowList).toEqual(windows);
   });
 });

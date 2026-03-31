@@ -8,7 +8,7 @@ vi.mock("@hmcs/sdk/rpc", () => ({
 }));
 
 import { rpc } from "@hmcs/sdk/rpc";
-import { getStatus } from "./api";
+import { getStatus, listWindows, captureScreen, captureWindow } from "./api";
 
 const mockConfig: DmConfig = {
   user_id: "alice",
@@ -51,5 +51,73 @@ describe("api — getStatus", () => {
     });
     const result = await getStatus();
     expect(result.status).toBe("disconnected");
+  });
+});
+
+describe("api — listWindows", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls rpc with listWindows method", async () => {
+    vi.mocked(rpc.call).mockResolvedValueOnce([]);
+    await listWindows();
+    expect(rpc.call).toHaveBeenCalledWith({
+      modName: "@hmcs/desktopmate-bridge",
+      method: "listWindows",
+    });
+  });
+
+  it("returns window list from rpc response", async () => {
+    const windows = [
+      { id: 1, title: "VSCode", appName: "Code" },
+      { id: 2, title: "Terminal", appName: "iTerm2" },
+    ];
+    vi.mocked(rpc.call).mockResolvedValueOnce(windows);
+    const result = await listWindows();
+    expect(result).toEqual(windows);
+  });
+});
+
+describe("api — captureScreen", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls rpc with captureScreen method", async () => {
+    vi.mocked(rpc.call).mockResolvedValueOnce("base64data");
+    await captureScreen();
+    expect(rpc.call).toHaveBeenCalledWith({
+      modName: "@hmcs/desktopmate-bridge",
+      method: "captureScreen",
+    });
+  });
+
+  it("returns base64 string from rpc response", async () => {
+    vi.mocked(rpc.call).mockResolvedValueOnce("abc123base64");
+    const result = await captureScreen();
+    expect(result).toBe("abc123base64");
+  });
+});
+
+describe("api — captureWindow", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls rpc with captureWindow method and windowId", async () => {
+    vi.mocked(rpc.call).mockResolvedValueOnce("base64data");
+    await captureWindow(42);
+    expect(rpc.call).toHaveBeenCalledWith({
+      modName: "@hmcs/desktopmate-bridge",
+      method: "captureWindow",
+      body: { windowId: 42 },
+    });
+  });
+
+  it("returns base64 string for the captured window", async () => {
+    vi.mocked(rpc.call).mockResolvedValueOnce("windowbase64");
+    const result = await captureWindow(7);
+    expect(result).toBe("windowbase64");
   });
 });

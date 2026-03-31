@@ -1,5 +1,5 @@
 import { rpc } from "@hmcs/sdk/rpc";
-import type { Session, Message, DmConfig, ConnectionStatus } from "./types";
+import type { Session, Message, DmConfig, ConnectionStatus, WindowInfo } from "./types";
 
 async function apiFetch(
   restUrl: string,
@@ -124,5 +124,27 @@ export async function getStatus(): Promise<{ status: ConnectionStatus; config: D
   return rpc.call({
     modName: "@hmcs/desktopmate-bridge",
     method: "getStatus",
+  });
+}
+
+export async function listWindows(): Promise<WindowInfo[]> {
+  return rpc.call({
+    modName: "@hmcs/desktopmate-bridge",
+    method: "listWindows",
+  });
+}
+
+export async function captureScreen(): Promise<string> {
+  return rpc.call({
+    modName: "@hmcs/desktopmate-bridge",
+    method: "captureScreen",
+  });
+}
+
+export async function captureWindow(windowId: number): Promise<string> {
+  return rpc.call({
+    modName: "@hmcs/desktopmate-bridge",
+    method: "captureWindow",
+    body: { windowId },
   });
 }
