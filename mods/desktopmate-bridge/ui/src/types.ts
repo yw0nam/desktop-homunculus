@@ -25,14 +25,3 @@ export interface DmConfig {
 }
 
 export type ConnectionStatus = "connected" | "disconnected" | "restart-required";
-
-export interface WindowInfo {
-  id: number;
-  title: string;
-  appName: string;
-}
-
-export interface ImageUrl {
-  type: "image_url";
-  image_url: { url: string };
-}

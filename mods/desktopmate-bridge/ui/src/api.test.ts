@@ -8,7 +8,7 @@ vi.mock("@hmcs/sdk/rpc", () => ({
 }));
 
 import { rpc } from "@hmcs/sdk/rpc";
-import { getStatus, listWindows, captureScreen, captureWindow, sendChatMessage } from "./api";
+import { getStatus } from "./api";
 
 const mockConfig: DmConfig = {
   user_id: "alice",
@@ -51,120 +51,5 @@ describe("api — getStatus", () => {
     });
     const result = await getStatus();
     expect(result.status).toBe("disconnected");
-  });
-});
-
-describe("api — listWindows", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("calls rpc with listWindows method", async () => {
-    vi.mocked(rpc.call).mockResolvedValueOnce([]);
-    await listWindows();
-    expect(rpc.call).toHaveBeenCalledWith({
-      modName: "@hmcs/desktopmate-bridge",
-      method: "listWindows",
-    });
-  });
-
-  it("returns window list from rpc response", async () => {
-    const windows = [
-      { id: 1, title: "VSCode", appName: "Code" },
-      { id: 2, title: "Terminal", appName: "iTerm2" },
-    ];
-    vi.mocked(rpc.call).mockResolvedValueOnce(windows);
-    const result = await listWindows();
-    expect(result).toEqual(windows);
-  });
-});
-
-describe("api — captureScreen", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("calls rpc with captureScreen method", async () => {
-    vi.mocked(rpc.call).mockResolvedValueOnce("base64data");
-    await captureScreen();
-    expect(rpc.call).toHaveBeenCalledWith({
-      modName: "@hmcs/desktopmate-bridge",
-      method: "captureScreen",
-    });
-  });
-
-  it("returns base64 string from rpc response", async () => {
-    vi.mocked(rpc.call).mockResolvedValueOnce("abc123base64");
-    const result = await captureScreen();
-    expect(result).toBe("abc123base64");
-  });
-});
-
-describe("api — captureWindow", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("calls rpc with captureWindow method and windowId", async () => {
-    vi.mocked(rpc.call).mockResolvedValueOnce("base64data");
-    await captureWindow(42);
-    expect(rpc.call).toHaveBeenCalledWith({
-      modName: "@hmcs/desktopmate-bridge",
-      method: "captureWindow",
-      body: { windowId: 42 },
-    });
-  });
-
-  it("returns base64 string for the captured window", async () => {
-    vi.mocked(rpc.call).mockResolvedValueOnce("windowbase64");
-    const result = await captureWindow(7);
-    expect(result).toBe("windowbase64");
-  });
-});
-
-describe("api — sendChatMessage", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("calls rpc without images when not provided", async () => {
-    vi.mocked(rpc.call).mockResolvedValueOnce({ ok: true });
-    await sendChatMessage("sess-1", "hello");
-    expect(rpc.call).toHaveBeenCalledWith({
-      modName: "@hmcs/desktopmate-bridge",
-      method: "sendMessage",
-      body: { content: "hello", session_id: "sess-1" },
-    });
-  });
-
-  it("calls rpc with images when provided", async () => {
-    vi.mocked(rpc.call).mockResolvedValueOnce({ ok: true });
-    const images = [
-      { type: "image_url" as const, image_url: { url: "data:image/jpeg;base64,abc123" } },
-    ];
-    await sendChatMessage("sess-1", "hello", images);
-    expect(rpc.call).toHaveBeenCalledWith({
-      modName: "@hmcs/desktopmate-bridge",
-      method: "sendMessage",
-      body: { content: "hello", session_id: "sess-1", images },
-    });
-  });
-
-  it("omits images key when images is undefined", async () => {
-    vi.mocked(rpc.call).mockResolvedValueOnce({ ok: true });
-    await sendChatMessage(undefined, "hi");
-    const callArg = vi.mocked(rpc.call).mock.calls[0][0] as { body: Record<string, unknown> };
-    expect(callArg.body).not.toHaveProperty("images");
-  });
-
-  it("includes multiple images when provided", async () => {
-    vi.mocked(rpc.call).mockResolvedValueOnce({ ok: true });
-    const images = [
-      { type: "image_url" as const, image_url: { url: "data:image/jpeg;base64,img1" } },
-      { type: "image_url" as const, image_url: { url: "data:image/jpeg;base64,img2" } },
-    ];
-    await sendChatMessage("sess-2", "look at these", images);
-    const callArg = vi.mocked(rpc.call).mock.calls[0][0] as { body: { images: unknown } };
-    expect(callArg.body.images).toEqual(images);
   });
 });

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Message, Session, DmConfig, ConnectionStatus, WindowInfo } from "./types";
+import type { Message, Session, DmConfig, ConnectionStatus } from "./types";
 
 interface StoreState {
   messages: Message[];
@@ -8,10 +8,6 @@ interface StoreState {
   isTyping: boolean;
   connectionStatus: ConnectionStatus;
   settings: DmConfig;
-  captureEnabled: boolean;
-  captureMode: "fullscreen" | "window";
-  selectedWindowId: number | null;
-  windowList: WindowInfo[];
 
   addUserMessage: (content: string) => void;
   startStreaming: (turnId: string, sessionId: string) => void;
@@ -23,10 +19,6 @@ interface StoreState {
   clearMessages: () => void;
   setConnectionStatus: (status: ConnectionStatus) => void;
   setSettings: (settings: DmConfig) => void;
-  setCaptureEnabled: (enabled: boolean) => void;
-  setCaptureMode: (mode: "fullscreen" | "window") => void;
-  setSelectedWindowId: (id: number | null) => void;
-  setWindowList: (windows: WindowInfo[]) => void;
 }
 
 export const useStore = create<StoreState>((set) => ({
@@ -35,10 +27,6 @@ export const useStore = create<StoreState>((set) => ({
   activeSessionId: null,
   isTyping: false,
   connectionStatus: "disconnected",
-  captureEnabled: false,
-  captureMode: "fullscreen",
-  selectedWindowId: null,
-  windowList: [],
   settings: {
     user_id: "",
     agent_id: "",
@@ -100,8 +88,4 @@ export const useStore = create<StoreState>((set) => ({
   clearMessages: () => set({ messages: [] }),
   setConnectionStatus: (status) => set({ connectionStatus: status }),
   setSettings: (settings) => set({ settings }),
-  setCaptureEnabled: (enabled) => set({ captureEnabled: enabled }),
-  setCaptureMode: (mode) => set({ captureMode: mode }),
-  setSelectedWindowId: (id) => set({ selectedWindowId: id }),
-  setWindowList: (windows) => set({ windowList: windows }),
 }));
