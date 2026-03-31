@@ -9,9 +9,23 @@ pnpm build:ui         # Vite build → ui/dist/index.html (gitignored)
 cd ui && npx tsc --noEmit  # type-check (pre-existing errors in ChatWindow.tsx / useSignals.ts — findLast requires ES2023 lib, do not fix)
 ```
 
-## Visual Development (agent-browser)
+## Visual Development (agent-browser) — MANDATORY for FE tasks
 
-When implementing or reviewing UI changes, use the `/agent-browser` skill to visually verify the result:
+**UI 변경을 포함하는 모든 FE 태스크는 아래 3단계를 반드시 완료해야 한다. 단위 테스트 통과만으로는 태스크 완료가 아니다.**
+
+### Step 1 — Unit Tests
+```bash
+npx vitest run   # from mods/desktopmate-bridge/
+```
+
+### Step 2 — Visual Verification
+`/agent-browser` 스킬로 실제 렌더링 확인:
+
+```bash
+# Start Vite dev server (from mods/desktopmate-bridge/ui/)
+pnpm dev
+# Dev server runs at http://localhost:5173
+```
 
 ```bash
 # Start Vite dev server (from mods/desktopmate-bridge/ui/)
@@ -31,6 +45,14 @@ For static HTML mockups (design-agent output), open directly:
 ```
 
 Always use Read tool on the output PNG to display the screenshot in the conversation.
+
+### Step 3 — Backend E2E Integration
+mock-homunculus로 실제 WS 통신 검증:
+```bash
+# from mods/desktopmate-bridge/
+npx tsx scripts/mock-homunculus.ts   # mock backend 기동
+npx vitest run --config vitest.e2e.config.ts   # E2E 테스트
+```
 
 ## Architecture
 
