@@ -10,8 +10,9 @@ try {
     (w) => w.source.type === "local" && (w.source as { id: string }).id === CHAT_UI_ASSET,
   );
 
-  if (existing && !(await new Webview(existing.entity).isClosed())) {
-    await new Webview(existing.entity).close();
+  const webview = existing ? new Webview(existing.entity) : null;
+  if (webview && !(await webview.isClosed())) {
+    await webview.close();
     await audio.se.play("se:close");
   } else {
     await Webview.open({

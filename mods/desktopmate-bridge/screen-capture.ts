@@ -18,6 +18,7 @@ export async function listWindows(): Promise<WindowInfo[]> {
 
 export async function captureScreen(): Promise<CaptureResult> {
   const monitors = Monitor.all();
+  if (monitors.length === 0) throw new Error("No monitors found: cannot capture screen");
   const primary = monitors.find((m) => m.isPrimary()) ?? monitors[0];
   const image = await primary.captureImage();
   const png = await image.toPng();
