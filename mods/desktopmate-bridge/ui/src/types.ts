@@ -31,3 +31,8 @@ export interface WindowInfo {
   title: string;
   appName: string;
 }
+
+export interface ImageUrl {
+  type: "image_url";
+  image_url: { url: string };
+}

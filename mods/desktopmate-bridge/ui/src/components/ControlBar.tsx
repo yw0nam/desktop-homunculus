@@ -1,8 +1,8 @@
 import { useRef, useState, useCallback } from "react";
 import { Webview } from "@hmcs/sdk";
 import { useStore } from "../store";
-import { sendChatMessage, interruptStream, listWindows } from "../api";
-import type { ConnectionStatus } from "../types";
+import { sendChatMessage, interruptStream, listWindows, captureScreen, captureWindow } from "../api";
+import type { ConnectionStatus, ImageUrl } from "../types";
 
 interface ControlBarProps {
   onToggleChat: () => void;
@@ -47,13 +47,28 @@ export function ControlBar({
 
   const statusLabel = STATUS_LABELS[connectionStatus];
 
+  async function captureImages(): Promise<ImageUrl[] | undefined> {
+    if (!captureEnabled) return undefined;
+    try {
+      const base64 =
+        captureMode === "window" && selectedWindowId !== null
+          ? await captureWindow(selectedWindowId)
+          : await captureScreen();
+      return [{ type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64}` } }];
+    } catch {
+      // capture failed — send without image
+      return undefined;
+    }
+  }
+
   async function handleSend() {
     if (!input.trim() || isTyping) return;
     const content = input.trim();
     setInput("");
     addUserMessage(content);
     try {
-      await sendChatMessage(activeSessionId ?? undefined, content);
+      const images = await captureImages();
+      await sendChatMessage(activeSessionId ?? undefined, content, images);
     } catch {
       // message is already shown in UI; WS send failure is handled by connection status
     }
