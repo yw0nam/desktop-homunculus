@@ -18,6 +18,8 @@ export class TtsChunkQueue {
   private buffer = new Map<number, TtsChunk>();
   private timeoutHandle: ReturnType<typeof setTimeout> | null = null;
   private readonly processFn: ProcessChunkFn;
+  // All drain work is chained here, guaranteeing serial execution.
+  private drainChain: Promise<void> = Promise.resolve();
 
   constructor(processFn: ProcessChunkFn) {
     this.processFn = processFn;
@@ -27,22 +29,40 @@ export class TtsChunkQueue {
     this.expectedSequence = 0;
     this.buffer.clear();
     this.cancelTimeout();
+    // Drop any pending drain work so stale items from the previous turn don't leak.
+    this.drainChain = Promise.resolve();
   }
 
   async flush(): Promise<void> {
+    // Cancel timeout first so it cannot enqueue new drain work while we wait.
     this.cancelTimeout();
+    await this.drainChain;
     await this.drainBufferInOrder();
     this.reset();
   }
 
-  async enqueue(chunk: TtsChunk): Promise<void> {
+  /**
+   * Add a chunk to the queue. Returns immediately without waiting for playback.
+   * Processing runs serially in the background via the drain chain.
+   */
+  enqueue(chunk: TtsChunk): void {
     this.buffer.set(chunk.sequence, chunk);
 
     if (this.buffer.size > MAX_BUFFER) {
-      await this.forceProcessOldest();
+      this.skipGapToOldest();
     }
 
-    await this.processConsecutive();
+    this.drainChain = this.drainChain
+      .then(() => this.processConsecutive())
+      .catch(console.error);
+  }
+
+  /**
+   * Returns a promise that resolves when all currently-queued drain work completes.
+   * Useful in tests to wait for processing without resetting state.
+   */
+  get settled(): Promise<void> {
+    return this.drainChain;
   }
 
   private async drainBufferInOrder(): Promise<void> {
@@ -67,8 +87,9 @@ export class TtsChunkQueue {
       this.cancelTimeout();
       const chunk = this.buffer.get(this.expectedSequence)!;
       this.buffer.delete(this.expectedSequence);
-      await this.processFn(chunk);
+      // Increment before await so a concurrent reset() sees the updated value.
       this.expectedSequence++;
+      await this.processFn(chunk);
     }
 
     if (this.buffer.size > 0 && this.timeoutHandle === null) {
@@ -76,7 +97,7 @@ export class TtsChunkQueue {
     }
   }
 
-  private async forceProcessOldest(): Promise<void> {
+  private skipGapToOldest(): void {
     const minSeq = Math.min(...this.buffer.keys());
 
     if (minSeq > this.expectedSequence) {
@@ -85,11 +106,6 @@ export class TtsChunkQueue {
       );
       this.expectedSequence = minSeq;
     }
-
-    const chunk = this.buffer.get(minSeq)!;
-    this.buffer.delete(minSeq);
-    await this.processFn(chunk);
-    this.expectedSequence = minSeq + 1;
   }
 
   private startTimeout(): void {
@@ -100,7 +116,9 @@ export class TtsChunkQueue {
         `TtsChunkQueue: timeout — sequence ${skipped} did not arrive, skipping`,
       );
       this.expectedSequence++;
-      this.processConsecutive().catch(console.error);
+      this.drainChain = this.drainChain
+        .then(() => this.processConsecutive())
+        .catch(console.error);
     }, TIMEOUT_MS);
   }
 

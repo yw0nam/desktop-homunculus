@@ -74,7 +74,7 @@ async function handleMessage(
       break;
     case "tts_chunk":
       if (_ttsQueue) {
-        await _ttsQueue.enqueue(msg as TtsChunk);
+        _ttsQueue.enqueue(msg as TtsChunk);
       }
       break;
     case "stream_end":
