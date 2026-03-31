@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from "react";
 import { Webview } from "@hmcs/sdk";
 import { useStore } from "../store";
-import { sendChatMessage, interruptStream } from "../api";
+import { sendChatMessage, interruptStream, captureScreen, captureWindow } from "../api";
 import type { ConnectionStatus } from "../types";
 
 interface ControlBarProps {
@@ -13,6 +13,25 @@ interface ControlBarProps {
 }
 
 const DRAG_SCALE = 0.002;
+
+async function captureImages(
+  captureMode: "fullscreen" | "window",
+  captureSelectedWindowId: string | null,
+): Promise<string[] | undefined> {
+  try {
+    if (captureMode === "fullscreen") {
+      const { base64 } = await captureScreen();
+      return [`data:image/png;base64,${base64}`];
+    }
+    if (captureSelectedWindowId) {
+      const { base64 } = await captureWindow(captureSelectedWindowId);
+      return [`data:image/png;base64,${base64}`];
+    }
+  } catch {
+    // capture failure is non-fatal; send message without image
+  }
+  return undefined;
+}
 
 const STATUS_LABELS = {
   connected: "✔ Connected",
@@ -28,8 +47,14 @@ export function ControlBar({
   captureActive,
 }: ControlBarProps) {
   const [input, setInput] = useState("");
-  const { isTyping, connectionStatus, activeSessionId, addUserMessage } =
-    useStore();
+  const {
+    isTyping,
+    connectionStatus,
+    activeSessionId,
+    addUserMessage,
+    captureMode,
+    captureSelectedWindowId,
+  } = useStore();
 
   const dragState = useRef<{
     startX: number;
@@ -44,8 +69,11 @@ export function ControlBar({
     const content = input.trim();
     setInput("");
     addUserMessage(content);
+    const images = captureActive
+      ? await captureImages(captureMode, captureSelectedWindowId)
+      : undefined;
     try {
-      await sendChatMessage(activeSessionId ?? undefined, content);
+      await sendChatMessage(activeSessionId ?? undefined, content, images);
     } catch {
       // message is already shown in UI; WS send failure is handled by connection status
     }

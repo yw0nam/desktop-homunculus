@@ -97,11 +97,12 @@ export async function patchSessionName(
 export async function sendChatMessage(
   sessionId: string | undefined,
   content: string,
+  images?: string[],
 ): Promise<void> {
   await rpc.call({
     modName: "@hmcs/desktopmate-bridge",
     method: "sendMessage",
-    body: { content, session_id: sessionId },
+    body: { content, session_id: sessionId, images },
   });
 }
 

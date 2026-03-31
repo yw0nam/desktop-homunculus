@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { vi, describe, it, expect, afterEach } from "vitest";
+import { vi, describe, it, expect, afterEach, beforeEach } from "vitest";
 import { render, fireEvent, cleanup } from "@testing-library/react";
 
 afterEach(() => cleanup());
@@ -22,15 +22,21 @@ vi.mock("../store", () => ({
     connectionStatus: "disconnected",
     activeSessionId: null,
     addUserMessage: vi.fn(),
+    captureMode: "fullscreen" as const,
+    captureSelectedWindowId: null,
   }),
 }));
 
 vi.mock("../api", () => ({
-  sendChatMessage: vi.fn(),
+  sendChatMessage: vi.fn().mockResolvedValue(undefined),
   interruptStream: vi.fn(),
+  captureScreen: vi.fn().mockResolvedValue({ base64: "screen-base64" }),
+  captureWindow: vi.fn().mockResolvedValue({ base64: "window-base64" }),
 }));
 
 import { ControlBar } from "./ControlBar";
+import { useStore } from "../store";
+import { sendChatMessage, captureScreen, captureWindow } from "../api";
 
 const noop = () => {};
 
@@ -101,5 +107,103 @@ describe("ControlBar — drag handle element", () => {
 
     preventDefaultSpy.mockRestore();
     stopPropagationSpy.mockRestore();
+  });
+});
+
+describe("ControlBar — send with capture", () => {
+  beforeEach(() => {
+    vi.mocked(sendChatMessage).mockClear();
+    vi.mocked(captureScreen).mockClear();
+    vi.mocked(captureWindow).mockClear();
+    vi.mocked(captureScreen).mockResolvedValue({ base64: "screen-base64" });
+    vi.mocked(captureWindow).mockResolvedValue({ base64: "window-base64" });
+  });
+
+  it("does not capture when captureActive=false", async () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+
+    const { getByPlaceholderText, getByText } = renderControlBar({ captureActive: false });
+    fireEvent.change(getByPlaceholderText("Enter message..."), { target: { value: "hello" } });
+    fireEvent.click(getByText("Send"));
+
+    await vi.waitFor(() => {
+      expect(sendChatMessage).toHaveBeenCalledWith(undefined, "hello", undefined);
+    });
+    expect(captureScreen).not.toHaveBeenCalled();
+  });
+
+  it("captures fullscreen and attaches image when captureActive=true and captureMode=fullscreen", async () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+
+    const { getByPlaceholderText, getByText } = renderControlBar({ captureActive: true });
+    fireEvent.change(getByPlaceholderText("Enter message..."), { target: { value: "hello" } });
+    fireEvent.click(getByText("Send"));
+
+    await vi.waitFor(() => {
+      expect(captureScreen).toHaveBeenCalled();
+      expect(sendChatMessage).toHaveBeenCalledWith(
+        undefined,
+        "hello",
+        ["data:image/png;base64,screen-base64"],
+      );
+    });
+  });
+
+  it("captures window and attaches image when captureActive=true and captureMode=window with selectedWindowId", async () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "window",
+      captureSelectedWindowId: "win-42",
+    });
+
+    const { getByPlaceholderText, getByText } = renderControlBar({ captureActive: true });
+    fireEvent.change(getByPlaceholderText("Enter message..."), { target: { value: "hello" } });
+    fireEvent.click(getByText("Send"));
+
+    await vi.waitFor(() => {
+      expect(captureWindow).toHaveBeenCalledWith("win-42");
+      expect(sendChatMessage).toHaveBeenCalledWith(
+        undefined,
+        "hello",
+        ["data:image/png;base64,window-base64"],
+      );
+    });
+  });
+
+  it("sends without images when captureMode=window but no window selected", async () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "window",
+      captureSelectedWindowId: null,
+    });
+
+    const { getByPlaceholderText, getByText } = renderControlBar({ captureActive: true });
+    fireEvent.change(getByPlaceholderText("Enter message..."), { target: { value: "hello" } });
+    fireEvent.click(getByText("Send"));
+
+    await vi.waitFor(() => {
+      expect(captureWindow).not.toHaveBeenCalled();
+      expect(sendChatMessage).toHaveBeenCalledWith(undefined, "hello", undefined);
+    });
   });
 });
