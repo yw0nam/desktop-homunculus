@@ -11,6 +11,17 @@ function makeChunk(sequence: number, audio: boolean = false): TtsChunk {
   };
 }
 
+/**
+ * Drain the microtask queue.
+ * Each async processor in the chain takes ~4 microtask ticks to complete.
+ * Pass the number of chunks to be processed; defaults to 10.
+ */
+async function drain(chunks = 10): Promise<void> {
+  for (let i = 0; i < chunks * 4 + 4; i++) {
+    await Promise.resolve();
+  }
+}
+
 describe("TtsChunkQueue", () => {
   let processed: TtsChunk[];
   let queue: TtsChunkQueue;
@@ -28,48 +39,54 @@ describe("TtsChunkQueue", () => {
   });
 
   describe("in-order delivery", () => {
-    it("processes chunks immediately when arriving in order", () => {
+    it("processes chunks in order when arriving in order", async () => {
       queue.enqueue(makeChunk(0));
       queue.enqueue(makeChunk(1));
       queue.enqueue(makeChunk(2));
+      await drain(3);
       expect(processed.map((c) => c.sequence)).toEqual([0, 1, 2]);
     });
   });
 
   describe("out-of-order delivery", () => {
-    it("buffers chunks until expected sequence arrives", () => {
+    it("buffers chunks until expected sequence arrives", async () => {
       queue.enqueue(makeChunk(2));
       queue.enqueue(makeChunk(1));
       expect(processed).toHaveLength(0);
       queue.enqueue(makeChunk(0));
+      await drain(3);
       expect(processed.map((c) => c.sequence)).toEqual([0, 1, 2]);
     });
 
-    it("processes correctly when first chunk is missing and arrives last", () => {
+    it("processes correctly when first chunk is missing and arrives last", async () => {
       queue.enqueue(makeChunk(2));
       queue.enqueue(makeChunk(1));
       queue.enqueue(makeChunk(0));
+      await drain(3);
       expect(processed.map((c) => c.sequence)).toEqual([0, 1, 2]);
     });
 
-    it("drains consecutive buffered chunks after missing gap filled", () => {
+    it("drains consecutive buffered chunks after missing gap filled", async () => {
       queue.enqueue(makeChunk(3));
       queue.enqueue(makeChunk(1));
       queue.enqueue(makeChunk(0));
+      await drain(2);
       // seq 0 and 1 drain, but seq 3 is buffered (seq 2 missing)
       expect(processed.map((c) => c.sequence)).toEqual([0, 1]);
       queue.enqueue(makeChunk(2));
+      await drain(2);
       expect(processed.map((c) => c.sequence)).toEqual([0, 1, 2, 3]);
     });
   });
 
   describe("reset()", () => {
-    it("clears buffer and resets expectedSequence to 0", () => {
+    it("clears buffer and resets expectedSequence to 0", async () => {
       queue.enqueue(makeChunk(1));
       queue.enqueue(makeChunk(2));
       queue.reset();
       expect(processed).toHaveLength(0);
       queue.enqueue(makeChunk(0));
+      await drain(1);
       expect(processed.map((c) => c.sequence)).toEqual([0]);
     });
 
@@ -84,18 +101,21 @@ describe("TtsChunkQueue", () => {
   });
 
   describe("flush()", () => {
-    it("processes all buffered chunks in sequence order", () => {
+    it("processes all buffered chunks in sequence order", async () => {
       queue.enqueue(makeChunk(2));
       queue.enqueue(makeChunk(1));
       queue.flush();
+      await drain(2);
       expect(processed.map((c) => c.sequence)).toEqual([1, 2]);
     });
 
-    it("resets queue so next stream starts from sequence 0", () => {
+    it("resets queue so next stream starts from sequence 0", async () => {
       queue.enqueue(makeChunk(2));
       queue.flush();
+      await drain(1); // let the deferred flush work complete before resetting
       processed = [];
       queue.enqueue(makeChunk(0));
+      await drain(1);
       expect(processed.map((c) => c.sequence)).toEqual([0]);
     });
 
@@ -110,51 +130,139 @@ describe("TtsChunkQueue", () => {
   });
 
   describe("timeout handling", () => {
-    it("skips missing sequence and processes buffered chunks after 3s", () => {
+    it("skips missing sequence and processes buffered chunks after 3s", async () => {
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       queue.enqueue(makeChunk(1)); // seq 0 is missing
       expect(processed).toHaveLength(0);
       vi.advanceTimersByTime(3000);
+      await drain(1);
       expect(processed.map((c) => c.sequence)).toEqual([1]);
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("0"));
       warnSpy.mockRestore();
     });
 
-    it("chains timeouts when multiple sequences are missing", () => {
+    it("chains timeouts when multiple sequences are missing", async () => {
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       queue.enqueue(makeChunk(2)); // seq 0 and 1 missing
       vi.advanceTimersByTime(3000); // seq 0 times out
+      await drain(1);
       expect(processed).toHaveLength(0); // seq 1 still missing
       vi.advanceTimersByTime(3000); // seq 1 times out
+      await drain(1);
       expect(processed.map((c) => c.sequence)).toEqual([2]);
       expect(warnSpy).toHaveBeenCalledTimes(2);
       warnSpy.mockRestore();
     });
 
-    it("does not fire timeout when buffer is empty after drain", () => {
+    it("does not fire timeout when buffer is empty after drain", async () => {
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       queue.enqueue(makeChunk(0));
       queue.enqueue(makeChunk(1));
       vi.advanceTimersByTime(5000);
+      await drain(2);
       expect(warnSpy).not.toHaveBeenCalled();
       warnSpy.mockRestore();
     });
   });
 
+  describe("serialization", () => {
+    // These tests use real timers to avoid fake-timer interference with microtask scheduling.
+    beforeEach(() => {
+      vi.useRealTimers();
+    });
+
+    afterEach(() => {
+      vi.useFakeTimers();
+    });
+
+    it("flush() does not start second processor before first completes", async () => {
+      let concurrentCalls = 0;
+      let maxConcurrent = 0;
+      const resolvers: Array<() => void> = [];
+
+      const serialQueue = new TtsChunkQueue(async (_chunk) => {
+        concurrentCalls++;
+        maxConcurrent = Math.max(maxConcurrent, concurrentCalls);
+        await new Promise<void>((resolve) => {
+          resolvers.push(resolve);
+        });
+        concurrentCalls--;
+      });
+
+      // seq 1 and 2 buffered (seq 0 missing), then flush dispatches both
+      serialQueue.enqueue(makeChunk(1));
+      serialQueue.enqueue(makeChunk(2));
+      serialQueue.flush();
+
+      // Drain enough ticks for first processor to start
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+      expect(concurrentCalls).toBe(1);
+      expect(resolvers).toHaveLength(1); // only first processor running
+
+      // Complete first processor; drain ticks for second to start
+      resolvers[0]!();
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+      expect(concurrentCalls).toBe(1);
+      expect(resolvers).toHaveLength(2); // second processor now running
+
+      // Complete second processor
+      resolvers[1]!();
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+      expect(concurrentCalls).toBe(0);
+      expect(maxConcurrent).toBe(1);
+    });
+
+    it("drainConsecutive() does not start second processor before first completes", async () => {
+      let concurrentCalls = 0;
+      let maxConcurrent = 0;
+      const resolvers: Array<() => void> = [];
+
+      const serialQueue = new TtsChunkQueue(async (_chunk) => {
+        concurrentCalls++;
+        maxConcurrent = Math.max(maxConcurrent, concurrentCalls);
+        await new Promise<void>((resolve) => {
+          resolvers.push(resolve);
+        });
+        concurrentCalls--;
+      });
+
+      // Enqueue in order — drainConsecutive fires immediately
+      serialQueue.enqueue(makeChunk(0));
+      serialQueue.enqueue(makeChunk(1));
+
+      // Drain enough ticks for first processor to start
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+      expect(concurrentCalls).toBe(1);
+      expect(resolvers).toHaveLength(1);
+
+      resolvers[0]!();
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+      expect(concurrentCalls).toBe(1);
+      expect(resolvers).toHaveLength(2);
+
+      resolvers[1]!();
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+      expect(concurrentCalls).toBe(0);
+      expect(maxConcurrent).toBe(1);
+    });
+  });
+
   describe("max buffer enforcement", () => {
-    it("force-processes oldest chunks when buffer exceeds 50", () => {
+    it("force-processes oldest chunks when buffer exceeds 50", async () => {
       // Enqueue 51 chunks with seq 0 missing (all waiting)
       for (let i = 51; i >= 1; i--) {
         queue.enqueue(makeChunk(i));
       }
+      await drain(51);
       // Buffer overflow should have triggered force-processing
       expect(processed.length).toBeGreaterThan(0);
     });
 
-    it("processed sequences maintain correct order after overflow", () => {
+    it("processed sequences maintain correct order after overflow", async () => {
       for (let i = 51; i >= 1; i--) {
         queue.enqueue(makeChunk(i));
       }
+      await drain(51);
       const seqs = processed.map((c) => c.sequence);
       for (let i = 1; i < seqs.length; i++) {
         expect(seqs[i]).toBeGreaterThan(seqs[i - 1]);

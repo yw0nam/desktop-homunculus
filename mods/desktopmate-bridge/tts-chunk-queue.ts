@@ -16,6 +16,7 @@ export class TtsChunkQueue {
   private buffer = new Map<number, TtsChunk>();
   private timeoutHandle: ReturnType<typeof setTimeout> | null = null;
   private readonly processor: ChunkProcessor;
+  private processingChain: Promise<void> = Promise.resolve();
 
   constructor(processor: ChunkProcessor) {
     this.processor = processor;
@@ -34,6 +35,7 @@ export class TtsChunkQueue {
     this.cancelTimeout();
     this.buffer.clear();
     this.expectedSequence = 0;
+    this.processingChain = Promise.resolve();
   }
 
   flush(): void {
@@ -42,16 +44,22 @@ export class TtsChunkQueue {
     for (const seq of sorted) {
       const chunk = this.buffer.get(seq)!;
       this.buffer.delete(seq);
-      this.processor(chunk).catch(console.error);
+      this.scheduleProcessor(chunk);
     }
     this.expectedSequence = 0;
+  }
+
+  private scheduleProcessor(chunk: TtsChunk): void {
+    this.processingChain = this.processingChain
+      .then(() => this.processor(chunk))
+      .catch(console.error);
   }
 
   private drainConsecutive(): void {
     while (this.buffer.has(this.expectedSequence)) {
       const chunk = this.buffer.get(this.expectedSequence)!;
       this.buffer.delete(this.expectedSequence);
-      this.processor(chunk).catch(console.error);
+      this.scheduleProcessor(chunk);
       this.expectedSequence++;
     }
   }
