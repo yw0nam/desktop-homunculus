@@ -15,7 +15,6 @@ const mockConfig: DmConfig = {
   agent_id: "yuri",
   fastapi_rest_url: "http://localhost:5500",
   fastapi_ws_url: "ws://localhost:5500/v1/chat/stream",
-  fastapi_token: "tok",
   homunculus_api_url: "http://localhost:3100",
   tts_reference_id: "speaker_001",
 };
