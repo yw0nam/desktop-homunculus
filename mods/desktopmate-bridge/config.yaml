@@ -1,0 +1,10 @@
+fastapi:
+  ws_url: "ws://127.0.0.1:5500/v1/chat/stream"
+  rest_url: "http://127.0.0.1:5500"
+  token: "<auth_token>"
+  user_id: "default"
+  agent_id: "yuri"
+homunculus:
+  api_url: "http://localhost:3100"
+tts:
+  reference_id: ""

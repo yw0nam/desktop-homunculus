@@ -51,3 +51,10 @@ docs/superpowers/
 *.njsproj
 *.sln
 *.sw?
+agents-v3/
+.claude/agent-memory
+.claude/memory
+.claude/sessions
+.claude/state
+.claude/settings.json
+.gstack/

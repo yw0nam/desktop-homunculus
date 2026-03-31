@@ -1,0 +1,53 @@
+{
+  "name": "@hmcs/desktopmate-bridge",
+  "version": "0.1.0",
+  "description": "FastAPI WebSocket bridge and chat UI for DesktopMate+",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build:ui": "pnpm --filter @hmcs/desktopmate-bridge-ui build",
+    "dev:ui": "pnpm --filter @hmcs/desktopmate-bridge-ui dev",
+    "mock": "node --import tsx scripts/mock-homunculus.ts",
+    "test": "vitest run",
+    "test:e2e": "FASTAPI_URL=http://localhost:5500 vitest run -c vitest.e2e.config.ts"
+  },
+  "homunculus": {
+    "service": "service.ts",
+    "menus": [
+      {
+        "id": "open-desktopmate-chat",
+        "text": "Chat",
+        "command": "open-chat"
+      }
+    ],
+    "assets": {
+      "desktopmate-bridge:elmer": {
+        "path": "vrm/Elmer.vrm",
+        "type": "vrm",
+        "description": "Elmer VRM character for DesktopMate+"
+      },
+      "desktopmate-bridge:chat-ui": {
+        "path": "ui/dist/index.html",
+        "type": "html",
+        "description": "DesktopMate+ chat UI"
+      }
+    }
+  },
+  "bin": {
+    "open-chat": "commands/open-chat.ts"
+  },
+  "dependencies": {
+    "@hmcs/sdk": "workspace:*",
+    "js-yaml": "^4.1.1",
+    "node-screenshots": "^0.2.8",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.0",
+    "zustand": "^5.0.12"
+  }
+}

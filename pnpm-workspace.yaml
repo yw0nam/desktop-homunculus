@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - mods/*
+  - mods/*/ui
   - docs/website
   - sandbox
 onlyBuiltDependencies:
