@@ -200,18 +200,12 @@ function startRpcServer(config: Config) {
   });
   const captureScreenMethod = rpc.method({
     description: "Capture full screen as base64 JPEG (max 1920px wide, quality 80)",
-    handler: async () => {
-      const base64 = await captureScreen();
-      return { base64 };
-    },
+    handler: async () => captureScreen(),
   });
   const captureWindowMethod = rpc.method({
     description: "Capture a specific window as base64 JPEG (max 1920px wide, quality 80)",
     input: z.object({ windowId: z.number() }),
-    handler: async ({ windowId }) => {
-      const base64 = await captureWindow(windowId);
-      return { base64 };
-    },
+    handler: async ({ windowId }) => captureWindow(windowId),
   });
   return rpc.serve({
     methods: {
