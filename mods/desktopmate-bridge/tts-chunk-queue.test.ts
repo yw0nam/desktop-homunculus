@@ -11,17 +11,6 @@ function makeChunk(sequence: number, audio: boolean = false): TtsChunk {
   };
 }
 
-/**
- * Drain the microtask queue.
- * Each async processor in the chain takes ~4 microtask ticks to complete.
- * Pass the number of chunks to be processed; defaults to 10.
- */
-async function drain(chunks = 10): Promise<void> {
-  for (let i = 0; i < chunks * 4 + 4; i++) {
-    await Promise.resolve();
-  }
-}
-
 describe("TtsChunkQueue", () => {
   let processed: TtsChunk[];
   let queue: TtsChunkQueue;
@@ -43,7 +32,7 @@ describe("TtsChunkQueue", () => {
       queue.enqueue(makeChunk(0));
       queue.enqueue(makeChunk(1));
       queue.enqueue(makeChunk(2));
-      await drain(3);
+      await queue.drain();
       expect(processed.map((c) => c.sequence)).toEqual([0, 1, 2]);
     });
   });
@@ -54,7 +43,7 @@ describe("TtsChunkQueue", () => {
       queue.enqueue(makeChunk(1));
       expect(processed).toHaveLength(0);
       queue.enqueue(makeChunk(0));
-      await drain(3);
+      await queue.drain();
       expect(processed.map((c) => c.sequence)).toEqual([0, 1, 2]);
     });
 
@@ -62,7 +51,7 @@ describe("TtsChunkQueue", () => {
       queue.enqueue(makeChunk(2));
       queue.enqueue(makeChunk(1));
       queue.enqueue(makeChunk(0));
-      await drain(3);
+      await queue.drain();
       expect(processed.map((c) => c.sequence)).toEqual([0, 1, 2]);
     });
 
@@ -70,11 +59,11 @@ describe("TtsChunkQueue", () => {
       queue.enqueue(makeChunk(3));
       queue.enqueue(makeChunk(1));
       queue.enqueue(makeChunk(0));
-      await drain(2);
+      await queue.drain();
       // seq 0 and 1 drain, but seq 3 is buffered (seq 2 missing)
       expect(processed.map((c) => c.sequence)).toEqual([0, 1]);
       queue.enqueue(makeChunk(2));
-      await drain(2);
+      await queue.drain();
       expect(processed.map((c) => c.sequence)).toEqual([0, 1, 2, 3]);
     });
   });
@@ -86,7 +75,7 @@ describe("TtsChunkQueue", () => {
       queue.reset();
       expect(processed).toHaveLength(0);
       queue.enqueue(makeChunk(0));
-      await drain(1);
+      await queue.drain();
       expect(processed.map((c) => c.sequence)).toEqual([0]);
     });
 
@@ -105,17 +94,17 @@ describe("TtsChunkQueue", () => {
       queue.enqueue(makeChunk(2));
       queue.enqueue(makeChunk(1));
       queue.flush();
-      await drain(2);
+      await queue.drain();
       expect(processed.map((c) => c.sequence)).toEqual([1, 2]);
     });
 
     it("resets queue so next stream starts from sequence 0", async () => {
       queue.enqueue(makeChunk(2));
       queue.flush();
-      await drain(1); // let the deferred flush work complete before resetting
+      await queue.drain(); // let the deferred flush work complete before resetting
       processed = [];
       queue.enqueue(makeChunk(0));
-      await drain(1);
+      await queue.drain();
       expect(processed.map((c) => c.sequence)).toEqual([0]);
     });
 
@@ -135,7 +124,7 @@ describe("TtsChunkQueue", () => {
       queue.enqueue(makeChunk(1)); // seq 0 is missing
       expect(processed).toHaveLength(0);
       vi.advanceTimersByTime(3000);
-      await drain(1);
+      await queue.drain();
       expect(processed.map((c) => c.sequence)).toEqual([1]);
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("0"));
       warnSpy.mockRestore();
@@ -145,10 +134,10 @@ describe("TtsChunkQueue", () => {
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       queue.enqueue(makeChunk(2)); // seq 0 and 1 missing
       vi.advanceTimersByTime(3000); // seq 0 times out
-      await drain(1);
+      await queue.drain();
       expect(processed).toHaveLength(0); // seq 1 still missing
       vi.advanceTimersByTime(3000); // seq 1 times out
-      await drain(1);
+      await queue.drain();
       expect(processed.map((c) => c.sequence)).toEqual([2]);
       expect(warnSpy).toHaveBeenCalledTimes(2);
       warnSpy.mockRestore();
@@ -159,7 +148,7 @@ describe("TtsChunkQueue", () => {
       queue.enqueue(makeChunk(0));
       queue.enqueue(makeChunk(1));
       vi.advanceTimersByTime(5000);
-      await drain(2);
+      await queue.drain();
       expect(warnSpy).not.toHaveBeenCalled();
       warnSpy.mockRestore();
     });
@@ -253,7 +242,7 @@ describe("TtsChunkQueue", () => {
       for (let i = 51; i >= 1; i--) {
         queue.enqueue(makeChunk(i));
       }
-      await drain(51);
+      await queue.drain();
       // Buffer overflow should have triggered force-processing
       expect(processed.length).toBeGreaterThan(0);
     });
@@ -262,7 +251,7 @@ describe("TtsChunkQueue", () => {
       for (let i = 51; i >= 1; i--) {
         queue.enqueue(makeChunk(i));
       }
-      await drain(51);
+      await queue.drain();
       const seqs = processed.map((c) => c.sequence);
       for (let i = 1; i < seqs.length; i++) {
         expect(seqs[i]).toBeGreaterThan(seqs[i - 1]);

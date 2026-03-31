@@ -49,6 +49,10 @@ export class TtsChunkQueue {
     this.expectedSequence = 0;
   }
 
+  drain(): Promise<void> {
+    return this.processingChain;
+  }
+
   private scheduleProcessor(chunk: TtsChunk): void {
     this.processingChain = this.processingChain
       .then(() => this.processor(chunk))
