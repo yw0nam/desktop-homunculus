@@ -81,7 +81,7 @@ export async function patchSessionName(
 ): Promise<void> {
   const res = await apiFetch(
     restUrl,
-    `/v1/stm/sessions/${sessionId}/metadata`,
+    `/v1/stm/sessions/${encodeURIComponent(sessionId)}/metadata`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
