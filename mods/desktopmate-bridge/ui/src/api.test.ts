@@ -8,7 +8,7 @@ vi.mock("@hmcs/sdk/rpc", () => ({
 }));
 
 import { rpc } from "@hmcs/sdk/rpc";
-import { getStatus, listWindows, captureScreen, captureWindow } from "./api";
+import { getStatus, listWindows, captureScreen, captureWindow, sendChatMessage } from "./api";
 
 const mockConfig: DmConfig = {
   user_id: "alice",
@@ -119,5 +119,52 @@ describe("api — captureWindow", () => {
     vi.mocked(rpc.call).mockResolvedValueOnce("windowbase64");
     const result = await captureWindow(7);
     expect(result).toBe("windowbase64");
+  });
+});
+
+describe("api — sendChatMessage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls rpc without images when not provided", async () => {
+    vi.mocked(rpc.call).mockResolvedValueOnce({ ok: true });
+    await sendChatMessage("sess-1", "hello");
+    expect(rpc.call).toHaveBeenCalledWith({
+      modName: "@hmcs/desktopmate-bridge",
+      method: "sendMessage",
+      body: { content: "hello", session_id: "sess-1" },
+    });
+  });
+
+  it("calls rpc with images when provided", async () => {
+    vi.mocked(rpc.call).mockResolvedValueOnce({ ok: true });
+    const images = [
+      { type: "image_url" as const, image_url: { url: "data:image/jpeg;base64,abc123" } },
+    ];
+    await sendChatMessage("sess-1", "hello", images);
+    expect(rpc.call).toHaveBeenCalledWith({
+      modName: "@hmcs/desktopmate-bridge",
+      method: "sendMessage",
+      body: { content: "hello", session_id: "sess-1", images },
+    });
+  });
+
+  it("omits images key when images is undefined", async () => {
+    vi.mocked(rpc.call).mockResolvedValueOnce({ ok: true });
+    await sendChatMessage(undefined, "hi");
+    const callArg = vi.mocked(rpc.call).mock.calls[0][0] as { body: Record<string, unknown> };
+    expect(callArg.body).not.toHaveProperty("images");
+  });
+
+  it("includes multiple images when provided", async () => {
+    vi.mocked(rpc.call).mockResolvedValueOnce({ ok: true });
+    const images = [
+      { type: "image_url" as const, image_url: { url: "data:image/jpeg;base64,img1" } },
+      { type: "image_url" as const, image_url: { url: "data:image/jpeg;base64,img2" } },
+    ];
+    await sendChatMessage("sess-2", "look at these", images);
+    const callArg = vi.mocked(rpc.call).mock.calls[0][0] as { body: { images: unknown } };
+    expect(callArg.body.images).toEqual(images);
   });
 });

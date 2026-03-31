@@ -122,14 +122,23 @@ function sendWsMessage(payload: unknown): void {
 }
 
 function startRpcServer(config: Config) {
+  const imageUrlSchema = z.object({
+    type: z.literal("image_url"),
+    image_url: z.object({ url: z.string() }),
+  });
   const sendMessage = rpc.method({
     description: "Send chat message via FastAPI WebSocket",
-    input: z.object({ content: z.string(), session_id: z.string().optional() }),
-    handler: async ({ content, session_id }) => {
+    input: z.object({
+      content: z.string(),
+      session_id: z.string().optional(),
+      images: z.array(imageUrlSchema).optional(),
+    }),
+    handler: async ({ content, session_id, images }) => {
       sendWsMessage({
         type: "chat_message",
         content,
         session_id,
+        images,
         user_id: config.fastapi.user_id,
         agent_id: config.fastapi.agent_id,
         reference_id: config.tts.reference_id || undefined,

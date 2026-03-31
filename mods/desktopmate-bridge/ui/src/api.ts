@@ -1,5 +1,5 @@
 import { rpc } from "@hmcs/sdk/rpc";
-import type { Session, Message, DmConfig, ConnectionStatus, WindowInfo } from "./types";
+import type { Session, Message, DmConfig, ConnectionStatus, WindowInfo, ImageUrl } from "./types";
 
 async function apiFetch(
   restUrl: string,
@@ -97,11 +97,12 @@ export async function patchSessionName(
 export async function sendChatMessage(
   sessionId: string | undefined,
   content: string,
+  images?: ImageUrl[],
 ): Promise<void> {
   await rpc.call({
     modName: "@hmcs/desktopmate-bridge",
     method: "sendMessage",
-    body: { content, session_id: sessionId },
+    body: { content, session_id: sessionId, ...(images !== undefined && { images }) },
   });
 }
 
