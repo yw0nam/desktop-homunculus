@@ -5,6 +5,7 @@ import yaml from "js-yaml";
 import { signals, Vrm, type TimelineKeyframe, type TransformArgs, preferences, repeat, sleep } from "@hmcs/sdk";
 import { rpc } from "@hmcs/sdk/rpc";
 import { z } from "zod";
+import { listWindows, captureScreen, captureWindow } from "./screen-capture.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = resolve(__dirname, "config.yaml");
@@ -181,7 +182,30 @@ function startRpcServer(config: Config) {
       },
     }),
   });
-  return rpc.serve({ methods: { sendMessage, interruptStream, updateConfig, getStatus } });
+  const listWindowsMethod = rpc.method({
+    description: "List all visible windows",
+    handler: async () => listWindows(),
+  });
+  const captureScreenMethod = rpc.method({
+    description: "Capture the primary screen as base64 PNG",
+    handler: async () => captureScreen(),
+  });
+  const captureWindowMethod = rpc.method({
+    description: "Capture a specific window as base64 PNG",
+    input: z.object({ id: z.string() }),
+    handler: async ({ id }) => captureWindow(id),
+  });
+  return rpc.serve({
+    methods: {
+      sendMessage,
+      interruptStream,
+      updateConfig,
+      getStatus,
+      listWindows: listWindowsMethod,
+      captureScreen: captureScreenMethod,
+      captureWindow: captureWindowMethod,
+    },
+  });
 }
 
 async function connectWithRetry(

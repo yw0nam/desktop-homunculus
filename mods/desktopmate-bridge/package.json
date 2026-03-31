@@ -39,6 +39,8 @@
   "dependencies": {
     "@hmcs/sdk": "workspace:*",
     "js-yaml": "^4.1.1",
+    "node-screenshots": "^0.2.8",
+    "sharp": "^0.34.5",
     "zod": "^3.24.0"
   },
   "devDependencies": {
