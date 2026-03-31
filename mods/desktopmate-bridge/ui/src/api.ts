@@ -21,10 +21,8 @@ export async function fetchSessions(
   userId: string,
   agentId: string,
 ): Promise<Session[]> {
-  const res = await apiFetch(
-    restUrl,
-    `/v1/stm/sessions?user_id=${userId}&agent_id=${agentId}`,
-  );
+  const params = new URLSearchParams({ user_id: userId, agent_id: agentId });
+  const res = await apiFetch(restUrl, `/v1/stm/sessions?${params}`);
   if (!res.ok) throw new Error(`fetchSessions failed: ${res.status}`);
   const data = await res.json() as { sessions: BackendSession[] };
   return data.sessions.map((s) => ({
@@ -47,10 +45,8 @@ export async function fetchChatHistory(
   userId: string,
   agentId: string,
 ): Promise<Message[]> {
-  const res = await apiFetch(
-    restUrl,
-    `/v1/stm/get-chat-history?session_id=${sessionId}&user_id=${userId}&agent_id=${agentId}`,
-  );
+  const params = new URLSearchParams({ session_id: sessionId, user_id: userId, agent_id: agentId });
+  const res = await apiFetch(restUrl, `/v1/stm/get-chat-history?${params}`);
   if (!res.ok) throw new Error(`fetchChatHistory failed: ${res.status}`);
   const data = await res.json() as { messages: BackendMessage[] };
   return data.messages
@@ -69,9 +65,10 @@ export async function deleteSession(
   userId: string,
   agentId: string,
 ): Promise<void> {
+  const params = new URLSearchParams({ user_id: userId, agent_id: agentId });
   const res = await apiFetch(
     restUrl,
-    `/v1/stm/sessions/${sessionId}?user_id=${userId}&agent_id=${agentId}`,
+    `/v1/stm/sessions/${encodeURIComponent(sessionId)}?${params}`,
     { method: "DELETE" },
   );
   if (!res.ok) throw new Error(`deleteSession failed: ${res.status}`);
@@ -84,7 +81,7 @@ export async function patchSessionName(
 ): Promise<void> {
   const res = await apiFetch(
     restUrl,
-    `/v1/stm/sessions/${sessionId}/metadata`,
+    `/v1/stm/sessions/${encodeURIComponent(sessionId)}/metadata`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
