@@ -8,6 +8,8 @@ interface ControlBarProps {
   onToggleChat: () => void;
   onToggleSidebar: () => void;
   onToggleSettings: () => void;
+  onToggleCapture: () => void;
+  captureActive: boolean;
 }
 
 const DRAG_SCALE = 0.002;
@@ -22,6 +24,8 @@ export function ControlBar({
   onToggleChat,
   onToggleSidebar,
   onToggleSettings,
+  onToggleCapture,
+  captureActive,
 }: ControlBarProps) {
   const [input, setInput] = useState("");
   const { isTyping, connectionStatus, activeSessionId, addUserMessage } =
@@ -149,6 +153,13 @@ export function ControlBar({
           title="Settings"
         >
           ⚙
+        </button>
+        <button
+          className={`text-xs px-1 hover:text-white ${captureActive ? "text-blue-400 btn-capture-active" : "text-white/60"}`}
+          onClick={onToggleCapture}
+          title="Screen Capture"
+        >
+          📷
         </button>
       </div>
     </div>

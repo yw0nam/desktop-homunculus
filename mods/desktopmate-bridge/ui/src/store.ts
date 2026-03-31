@@ -8,6 +8,10 @@ interface StoreState {
   isTyping: boolean;
   connectionStatus: ConnectionStatus;
   settings: DmConfig;
+  captureMode: "fullscreen" | "window";
+  captureWindowList: { id: string; title: string }[];
+  captureSelectedWindowId: string | null;
+  capturePreview: string | null;
 
   addUserMessage: (content: string) => void;
   startStreaming: (turnId: string, sessionId: string) => void;
@@ -19,6 +23,10 @@ interface StoreState {
   clearMessages: () => void;
   setConnectionStatus: (status: ConnectionStatus) => void;
   setSettings: (settings: DmConfig) => void;
+  setCaptureMode: (mode: "fullscreen" | "window") => void;
+  setCaptureWindowList: (windows: { id: string; title: string }[]) => void;
+  setCaptureSelectedWindowId: (id: string | null) => void;
+  setCapturePreview: (base64: string | null) => void;
 }
 
 export const useStore = create<StoreState>((set) => ({
@@ -36,6 +44,10 @@ export const useStore = create<StoreState>((set) => ({
     homunculus_api_url: "",
     tts_reference_id: "",
   },
+  captureMode: "fullscreen",
+  captureWindowList: [],
+  captureSelectedWindowId: null,
+  capturePreview: null,
 
   addUserMessage: (content) =>
     set((s) => ({
@@ -88,4 +100,8 @@ export const useStore = create<StoreState>((set) => ({
   clearMessages: () => set({ messages: [] }),
   setConnectionStatus: (status) => set({ connectionStatus: status }),
   setSettings: (settings) => set({ settings }),
+  setCaptureMode: (captureMode) => set({ captureMode }),
+  setCaptureWindowList: (captureWindowList) => set({ captureWindowList }),
+  setCaptureSelectedWindowId: (captureSelectedWindowId) => set({ captureSelectedWindowId }),
+  setCapturePreview: (capturePreview) => set({ capturePreview }),
 }));

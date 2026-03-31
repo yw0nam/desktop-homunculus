@@ -34,15 +34,44 @@ import { ControlBar } from "./ControlBar";
 
 const noop = () => {};
 
-function renderControlBar() {
+function renderControlBar(props?: Partial<{ captureActive: boolean; onToggleCapture: () => void }>) {
   return render(
     <ControlBar
       onToggleChat={noop}
       onToggleSidebar={noop}
       onToggleSettings={noop}
+      onToggleCapture={noop}
+      captureActive={false}
+      {...props}
     />
   );
 }
+
+describe("ControlBar — capture toggle button", () => {
+  it("renders 📷 button with title 'Screen Capture'", () => {
+    const { getByTitle } = renderControlBar();
+    expect(getByTitle("Screen Capture")).toBeTruthy();
+  });
+
+  it("calls onToggleCapture when 📷 button is clicked", () => {
+    const onToggleCapture = vi.fn();
+    const { getByTitle } = renderControlBar({ onToggleCapture });
+    fireEvent.click(getByTitle("Screen Capture"));
+    expect(onToggleCapture).toHaveBeenCalledOnce();
+  });
+
+  it("applies btn-capture-active class when captureActive is true", () => {
+    const { getByTitle } = renderControlBar({ captureActive: true });
+    const btn = getByTitle("Screen Capture");
+    expect(btn.className).toContain("btn-capture-active");
+  });
+
+  it("does not apply btn-capture-active class when captureActive is false", () => {
+    const { getByTitle } = renderControlBar({ captureActive: false });
+    const btn = getByTitle("Screen Capture");
+    expect(btn.className).not.toContain("btn-capture-active");
+  });
+});
 
 describe("ControlBar — drag handle element", () => {
   it("renders drag handle as div[role=button], not <button>", () => {

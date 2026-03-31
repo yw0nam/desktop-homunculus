@@ -126,3 +126,25 @@ export async function getStatus(): Promise<{ status: ConnectionStatus; config: D
     method: "getStatus",
   });
 }
+
+export async function listWindows(): Promise<{ id: string; title: string }[]> {
+  return rpc.call({
+    modName: "@hmcs/desktopmate-bridge",
+    method: "listWindows",
+  });
+}
+
+export async function captureScreen(): Promise<{ base64: string }> {
+  return rpc.call({
+    modName: "@hmcs/desktopmate-bridge",
+    method: "captureScreen",
+  });
+}
+
+export async function captureWindow(id: string): Promise<{ base64: string }> {
+  return rpc.call({
+    modName: "@hmcs/desktopmate-bridge",
+    method: "captureWindow",
+    body: { id },
+  });
+}
