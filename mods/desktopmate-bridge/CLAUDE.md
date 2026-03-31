@@ -9,6 +9,29 @@ pnpm build:ui         # Vite build → ui/dist/index.html (gitignored)
 cd ui && npx tsc --noEmit  # type-check (pre-existing errors in ChatWindow.tsx / useSignals.ts — findLast requires ES2023 lib, do not fix)
 ```
 
+## Visual Development (agent-browser)
+
+When implementing or reviewing UI changes, use the `/agent-browser` skill to visually verify the result:
+
+```bash
+# Start Vite dev server (from mods/desktopmate-bridge/ui/)
+pnpm dev
+# Dev server runs at http://localhost:5173
+
+# In agent-browser:
+# $B goto http://localhost:5173
+# $B screenshot /tmp/preview.png
+# $B snapshot -i -a -o /tmp/annotated.png
+```
+
+For static HTML mockups (design-agent output), open directly:
+```bash
+# $B goto file:///path/to/design/{feature}/mockup.html
+# $B screenshot /tmp/mockup-preview.png
+```
+
+Always use Read tool on the output PNG to display the screenshot in the conversation.
+
 ## Architecture
 
 Config flow: `config.yaml` → `loadConfig()` → `broadcastConfig()` → `dm-config` signal → UI store `settings`.
