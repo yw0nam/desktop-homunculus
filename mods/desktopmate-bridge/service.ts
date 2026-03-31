@@ -179,7 +179,6 @@ function startRpcServer(config: Config) {
         agent_id: config.fastapi.agent_id,
         fastapi_rest_url: config.fastapi.rest_url,
         fastapi_ws_url: config.fastapi.ws_url,
-        fastapi_token: config.fastapi.token,
         homunculus_api_url: config.homunculus.api_url,
         tts_reference_id: config.tts.reference_id,
       },
@@ -310,7 +309,6 @@ async function broadcastConfig(config: Config): Promise<void> {
     agent_id: config.fastapi.agent_id,
     fastapi_rest_url: config.fastapi.rest_url,
     fastapi_ws_url: config.fastapi.ws_url,
-    fastapi_token: config.fastapi.token,
     homunculus_api_url: config.homunculus.api_url,
     tts_reference_id: config.tts.reference_id,
   });
