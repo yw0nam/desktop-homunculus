@@ -6,6 +6,7 @@ import { signals, Vrm, type TimelineKeyframe, type TransformArgs, preferences, r
 import { rpc } from "@hmcs/sdk/rpc";
 import { z } from "zod";
 import { listWindows, captureScreen, captureWindow } from "./screen-capture.js";
+import { TtsChunkQueue, type TtsChunk } from "./tts-chunk-queue.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = resolve(__dirname, "config.yaml");
@@ -50,7 +51,6 @@ function nextRetryDelay(state: RetryState): number | null {
 async function handleMessage(
   event: MessageEvent,
   config: Config,
-  vrm: Vrm,
 ): Promise<void> {
   const msg = JSON.parse(event.data as string);
   switch (msg.type) {
@@ -65,15 +65,17 @@ async function handleMessage(
       await signals.send("dm-connection-status", { status: "disconnected" });
       break;
     case "stream_start":
+      _ttsQueue.reset();
       await signals.send("dm-typing-start", {
         turn_id: msg.turn_id,
         session_id: msg.session_id,
       });
       break;
     case "tts_chunk":
-      await handleTtsChunk(msg, vrm);
+      _ttsQueue.enqueue(msg as TtsChunk);
       break;
     case "stream_end":
+      _ttsQueue.flush();
       await signals.send("dm-message-complete", {
         turn_id: msg.turn_id,
         session_id: msg.session_id,
@@ -86,24 +88,19 @@ async function handleMessage(
   }
 }
 
-async function handleTtsChunk(
-  msg: {
-    sequence: number;
-    text: string;
-    emotion: string;
-    audio_base64: string | null;
-    keyframes: TimelineKeyframe[];
-  },
-  vrm: Vrm,
-): Promise<void> {
-  if (msg.audio_base64) {
-    const audioBytes = Buffer.from(msg.audio_base64, "base64");
-    await vrm.speakWithTimeline(audioBytes, msg.keyframes);
-  }
-  await signals.send("dm-tts-chunk", {
-    sequence: msg.sequence,
-    text: msg.text,
-    emotion: msg.emotion,
+function createTtsQueue(vrm: Vrm): TtsChunkQueue {
+  return new TtsChunkQueue(async (chunk) => {
+    if (chunk.audio_base64) {
+      const audioBytes = Buffer.from(chunk.audio_base64, "base64");
+      await vrm.speakWithTimeline(audioBytes, chunk.keyframes as TimelineKeyframe[], {
+        waitForCompletion: false,
+      });
+    }
+    await signals.send("dm-tts-chunk", {
+      sequence: chunk.sequence,
+      text: chunk.text,
+      emotion: chunk.emotion,
+    });
   });
 }
 
@@ -111,6 +108,7 @@ let _ws: WebSocket | null = null;
 let _connectionId: string | null = null;
 let _authFailed = false;
 let _connectionStatus: "connected" | "disconnected" | "restart-required" = "disconnected";
+let _ttsQueue!: TtsChunkQueue;
 
 function sendWsMessage(payload: unknown): void {
   if (_ws?.readyState === WebSocket.OPEN) {
@@ -228,7 +226,7 @@ async function connectWithRetry(
   });
 
   ws.addEventListener("message", (event) => {
-    handleMessage(event, config, vrm).catch(console.error);
+    handleMessage(event, config).catch(console.error);
   });
 
   ws.addEventListener("close", async (event) => {
@@ -325,4 +323,5 @@ async function connectAndServe(config: Config, vrm: Vrm): Promise<void> {
 // --- entry point ---
 const config = loadConfig();
 const vrm = await spawnCharacter();              // VRM spawned first
+_ttsQueue = createTtsQueue(vrm);
 connectAndServe(config, vrm).catch(console.error); // fire-and-forget: WS + RPC
