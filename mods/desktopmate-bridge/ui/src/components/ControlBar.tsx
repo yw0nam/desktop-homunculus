@@ -85,8 +85,14 @@ export function ControlBar({
   async function handleDragStart(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    dragState.current = null; // clear any stale state from a previous drag
     const wv = Webview.current();
     if (!wv) return;
+    // Register listeners BEFORE the async call so quick drags are captured.
+    // handleDragMove guards against dragState being null, so pre-async events
+    // are safely ignored until dragState is set below.
+    window.addEventListener("mousemove", handleDragMove);
+    window.addEventListener("mouseup", handleDragEnd);
     try {
       const info = await wv.info();
       dragState.current = {
@@ -94,10 +100,10 @@ export function ControlBar({
         startY: e.clientY,
         startOffset: info.offset,
       };
-      window.addEventListener("mousemove", handleDragMove);
-      window.addEventListener("mouseup", handleDragEnd);
     } catch {
-      // engine unavailable
+      // engine unavailable — clean up listeners
+      window.removeEventListener("mousemove", handleDragMove);
+      window.removeEventListener("mouseup", handleDragEnd);
     }
   }
 
@@ -160,7 +166,7 @@ export function ControlBar({
           ☰
         </button>
         <input
-          className="flex-1 bg-white/10 text-white text-sm rounded px-2 py-1 outline-none placeholder-white/40"
+          className="flex-1 min-w-0 bg-white/10 text-white text-sm rounded px-2 py-1 outline-none placeholder-white/40"
           placeholder="Enter message..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
