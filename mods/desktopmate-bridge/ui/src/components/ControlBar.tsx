@@ -56,6 +56,8 @@ export function ControlBar({
   }
 
   async function handleDragStart(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
     const wv = Webview.current();
     if (!wv) return;
     try {
@@ -94,13 +96,15 @@ export function ControlBar({
     <div className="flex flex-col gap-1 px-2 py-1 bg-black/30 backdrop-blur-sm border-t border-white/10">
       <div className="text-xs text-white/60 text-center">{statusLabel}</div>
       <div className="flex items-center gap-1">
-        <button
+        <div
+          role="button"
+          tabIndex={0}
           className="text-white/60 text-xs px-1 hover:text-white cursor-grab active:cursor-grabbing"
           onMouseDown={handleDragStart}
           title="Drag"
         >
           ⠿
-        </button>
+        </div>
         <button
           className="text-white/60 text-xs px-1 hover:text-white"
           onClick={onToggleSidebar}
