@@ -5,6 +5,8 @@ import yaml from "js-yaml";
 import { signals, Vrm, type TimelineKeyframe, type TransformArgs, preferences, repeat, sleep } from "@hmcs/sdk";
 import { rpc } from "@hmcs/sdk/rpc";
 import { z } from "zod";
+import { TtsChunkQueue, type TtsChunk } from "./tts-chunk-queue.js";
+import { listWindows, captureScreen, captureWindow } from "./capture.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = resolve(__dirname, "config.yaml");
@@ -64,15 +66,19 @@ async function handleMessage(
       await signals.send("dm-connection-status", { status: "disconnected" });
       break;
     case "stream_start":
+      _ttsQueue?.reset();
       await signals.send("dm-typing-start", {
         turn_id: msg.turn_id,
         session_id: msg.session_id,
       });
       break;
     case "tts_chunk":
-      await handleTtsChunk(msg, vrm);
+      if (_ttsQueue) {
+        await _ttsQueue.enqueue(msg as TtsChunk);
+      }
       break;
     case "stream_end":
+      await _ttsQueue?.flush();
       await signals.send("dm-message-complete", {
         turn_id: msg.turn_id,
         session_id: msg.session_id,
@@ -85,31 +91,29 @@ async function handleMessage(
   }
 }
 
-async function handleTtsChunk(
-  msg: {
-    sequence: number;
-    text: string;
-    emotion: string;
-    audio_base64: string | null;
-    keyframes: TimelineKeyframe[];
-  },
-  vrm: Vrm,
-): Promise<void> {
-  if (msg.audio_base64) {
-    const audioBytes = Buffer.from(msg.audio_base64, "base64");
-    await vrm.speakWithTimeline(audioBytes, msg.keyframes);
+async function handleTtsChunk(chunk: TtsChunk, vrm: Vrm): Promise<void> {
+  if (chunk.audio_base64) {
+    const audioBytes = Buffer.from(chunk.audio_base64, "base64");
+    await vrm.speakWithTimeline(audioBytes, chunk.keyframes, {
+      waitForCompletion: false,
+    });
   }
   await signals.send("dm-tts-chunk", {
-    sequence: msg.sequence,
-    text: msg.text,
-    emotion: msg.emotion,
+    sequence: chunk.sequence,
+    text: chunk.text,
+    emotion: chunk.emotion,
   });
+}
+
+function buildTtsQueue(vrm: Vrm): TtsChunkQueue {
+  return new TtsChunkQueue((chunk) => handleTtsChunk(chunk, vrm));
 }
 
 let _ws: WebSocket | null = null;
 let _connectionId: string | null = null;
 let _authFailed = false;
 let _connectionStatus: "connected" | "disconnected" | "restart-required" = "disconnected";
+let _ttsQueue: TtsChunkQueue | null = null;
 
 function sendWsMessage(payload: unknown): void {
   if (_ws?.readyState === WebSocket.OPEN) {
@@ -181,7 +185,36 @@ function startRpcServer(config: Config) {
       },
     }),
   });
-  return rpc.serve({ methods: { sendMessage, interruptStream, updateConfig, getStatus } });
+  const listWindowsMethod = rpc.method({
+    description: "List all open windows",
+    handler: async () => listWindows(),
+  });
+  const captureScreenMethod = rpc.method({
+    description: "Capture full screen as base64 JPEG (max 1920px wide, quality 80)",
+    handler: async () => {
+      const base64 = await captureScreen();
+      return { base64 };
+    },
+  });
+  const captureWindowMethod = rpc.method({
+    description: "Capture a specific window as base64 JPEG (max 1920px wide, quality 80)",
+    input: z.object({ windowId: z.number() }),
+    handler: async ({ windowId }) => {
+      const base64 = await captureWindow(windowId);
+      return { base64 };
+    },
+  });
+  return rpc.serve({
+    methods: {
+      sendMessage,
+      interruptStream,
+      updateConfig,
+      getStatus,
+      listWindows: listWindowsMethod,
+      captureScreen: captureScreenMethod,
+      captureWindow: captureWindowMethod,
+    },
+  });
 }
 
 async function connectWithRetry(
@@ -290,6 +323,8 @@ async function broadcastConfig(config: Config): Promise<void> {
 }
 
 async function connectAndServe(config: Config, vrm: Vrm): Promise<void> {
+  _ttsQueue = buildTtsQueue(vrm);
+
   await broadcastConfig(config);
 
   // TODO: store rpcServer and call rpcServer.stop() on graceful shutdown
