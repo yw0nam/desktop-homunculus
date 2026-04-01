@@ -84,6 +84,7 @@ export function ControlBar({
     scale: number;
   } | null>(null);
   const rafRef = useRef<number | null>(null);
+  const latestMoveEventRef = useRef<MouseEvent | null>(null);
 
   const statusLabel = STATUS_LABELS[connectionStatus];
   const showReconnect = connectionStatus === "disconnected" || connectionStatus === "restart-required";
@@ -131,7 +132,7 @@ export function ControlBar({
     try {
       const info = await wv.info();
       const scale =
-        info.size && info.viewportSize
+        info.size?.width > 0 && info.viewportSize?.width
           ? info.viewportSize.width / info.size.width
           : 0.002;
       dragState.current = {
@@ -149,15 +150,17 @@ export function ControlBar({
 
   const handleDragMove = useCallback((e: MouseEvent) => {
     if (!dragState.current) return;
+    latestMoveEventRef.current = e;
     if (rafRef.current !== null) return;
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
-      if (!dragState.current) return;
+      const latest = latestMoveEventRef.current;
+      if (!dragState.current || !latest) return;
       const wv = Webview.current();
       if (!wv) return;
       const { startX, startY, startOffset, scale } = dragState.current;
-      const dx = (e.clientX - startX) * scale;
-      const dy = (e.clientY - startY) * scale;
+      const dx = (latest.clientX - startX) * scale;
+      const dy = (latest.clientY - startY) * scale;
       wv.setOffset([
         startOffset[0] + dx,
         startOffset[1] - dy,

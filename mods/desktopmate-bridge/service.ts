@@ -217,6 +217,10 @@ function startRpcServer(config: Config) {
     handler: async () => {
       _authFailed = false;
       _connectionStatus = "disconnected";
+      if (_ws) {
+        _ws.onclose = null;
+        _ws.close();
+      }
       await signals.send("dm-connection-status", { status: "disconnected" });
       connectWithRetry(config, vrm, { attempts: 0 }).catch(console.error);
       return { ok: true };
