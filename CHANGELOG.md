@@ -7,9 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **desktopmate-bridge**: `fastapi_token` is now optional in both `DmConfig` type and `updateConfig` Zod schema — saving settings without touching the token field no longer fails validation
-- **desktopmate-bridge**: TTS chunks now play in the correct order via a serialized promise chain in `TtsChunkQueue`; added `drain()` public method to await pending processing
-- **desktopmate-bridge**: WebSocket message handler now catches `JSON.parse` errors and emits a `dm-connection-status` error signal instead of crashing silently
-- **desktopmate-bridge**: WebSocket reconnect no longer leaks stale close handlers across reconnect cycles
-- **desktopmate-bridge**: STM API calls (`fetchSessions`, `fetchChatHistory`, `deleteSession`, `patchSessionName`) now use `URLSearchParams` / `encodeURIComponent` — session IDs with special characters are encoded correctly
-- **desktopmate-bridge**: `captureScreen` now throws a clear error when `Monitor.all()` returns an empty list instead of indexing into an empty array
-- **desktopmate-bridge**: `open-chat` command reuses a single `Webview` instance to prevent TOCTOU race between `isClosed()` and `close()`
+- **desktopmate-bridge**: TTS chunks now always play in the correct order — no more out-of-order audio when messages arrive quickly
+- **desktopmate-bridge**: Malformed WebSocket frames no longer crash the bridge silently — the connection status UI now shows an error
+- **desktopmate-bridge**: WebSocket reconnection is more reliable and no longer leaves stale event listeners from the previous connection
+- **desktopmate-bridge**: Session IDs containing special characters (spaces, slashes, etc.) are now encoded correctly in all STM API calls
+- **desktopmate-bridge**: `captureScreen` now surfaces a clear error when no monitors are found, instead of crashing with an obscure index error
+- **desktopmate-bridge**: Opening the chat window no longer flickers or spawns multiple instances when triggered in quick succession

@@ -42,6 +42,10 @@ Bring your desktop to life with interactive 3D VRM characters. Desktop Homunculu
 | Windows  | Supported (NVIDIA GPU configuration required) |
 | Linux    | Planned                                       |
 
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md) for release history.
+
 ## Contributing
 
 See the [Contributing Guide](https://not-elm.github.io/desktop-homunculus/contributing) for guidelines.
