@@ -212,6 +212,16 @@ function startRpcServer(config: Config) {
     input: z.object({ id: z.string() }),
     handler: async ({ id }) => captureWindow(id),
   });
+  const reconnectMethod = rpc.method({
+    description: "Re-establish WebSocket connection to FastAPI backend",
+    handler: async () => {
+      _authFailed = false;
+      _connectionStatus = "disconnected";
+      await signals.send("dm-connection-status", { status: "disconnected" });
+      connectWithRetry(config, vrm, { attempts: 0 }).catch(console.error);
+      return { ok: true };
+    },
+  });
   return rpc.serve({
     methods: {
       sendMessage,
@@ -221,6 +231,7 @@ function startRpcServer(config: Config) {
       listWindows: listWindowsMethod,
       captureScreen: captureScreenMethod,
       captureWindow: captureWindowMethod,
+      reconnect: reconnectMethod,
     },
   });
 }

@@ -146,3 +146,10 @@ export async function captureWindow(id: string): Promise<{ base64: string }> {
     body: { id },
   });
 }
+
+export async function reconnect(): Promise<void> {
+  await rpc.call({
+    modName: "@hmcs/desktopmate-bridge",
+    method: "reconnect",
+  });
+}

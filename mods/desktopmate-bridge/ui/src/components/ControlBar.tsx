@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from "react";
 import { Webview } from "@hmcs/sdk";
 import { useStore } from "../store";
-import { sendChatMessage, interruptStream, captureScreen, captureWindow } from "../api";
+import { sendChatMessage, interruptStream, captureScreen, captureWindow, reconnect } from "../api";
 import type { ConnectionStatus, ImageContent } from "../types";
 
 interface ControlBarProps {
@@ -10,6 +10,28 @@ interface ControlBarProps {
   onToggleSettings: () => void;
   onToggleCapture: () => void;
   captureActive: boolean;
+}
+
+interface ReconnectButtonProps {
+  isReconnecting: boolean;
+  onReconnect: () => void;
+}
+
+function ReconnectButton({ isReconnecting, onReconnect }: ReconnectButtonProps) {
+  return (
+    <button
+      title="Reconnect"
+      onClick={onReconnect}
+      disabled={isReconnecting}
+      className={
+        isReconnecting
+          ? "text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-white/30 cursor-not-allowed"
+          : "text-xs px-2 py-0.5 rounded bg-white/10 border border-white/20 text-white/80 hover:bg-white/20 hover:text-white transition-colors duration-150 active:scale-95"
+      }
+    >
+      {isReconnecting ? "↺ Reconnecting…" : "↺ Reconnect"}
+    </button>
+  );
 }
 
 async function captureImages(
@@ -45,6 +67,7 @@ export function ControlBar({
   captureActive,
 }: ControlBarProps) {
   const [input, setInput] = useState("");
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const {
     isTyping,
     connectionStatus,
@@ -63,6 +86,19 @@ export function ControlBar({
   const rafRef = useRef<number | null>(null);
 
   const statusLabel = STATUS_LABELS[connectionStatus];
+  const showReconnect = connectionStatus === "disconnected" || connectionStatus === "restart-required";
+
+  async function handleReconnect() {
+    if (isReconnecting) return;
+    setIsReconnecting(true);
+    try {
+      await reconnect();
+    } catch {
+      // connection failure is surfaced via connectionStatus signal
+    } finally {
+      setIsReconnecting(false);
+    }
+  }
 
   async function handleSend() {
     if (!input.trim() || isTyping) return;
@@ -141,7 +177,12 @@ export function ControlBar({
 
   return (
     <div className="flex flex-col gap-1 px-2 py-1 bg-black/30 backdrop-blur-sm border-t border-white/10">
-      <div className="text-xs text-white/60 text-center">{statusLabel}</div>
+      <div className="flex items-center justify-center gap-2">
+        <div className="text-xs text-white/60">{statusLabel}</div>
+        {showReconnect && (
+          <ReconnectButton isReconnecting={isReconnecting} onReconnect={handleReconnect} />
+        )}
+      </div>
       <div className="flex items-center gap-1">
         <div
           role="button"

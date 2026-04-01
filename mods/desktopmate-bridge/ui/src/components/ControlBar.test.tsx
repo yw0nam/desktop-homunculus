@@ -35,11 +35,12 @@ vi.mock("../api", () => ({
   interruptStream: vi.fn(),
   captureScreen: vi.fn().mockResolvedValue({ base64: "screen-base64" }),
   captureWindow: vi.fn().mockResolvedValue({ base64: "window-base64" }),
+  reconnect: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { ControlBar } from "./ControlBar";
 import { useStore } from "../store";
-import { sendChatMessage, captureScreen, captureWindow } from "../api";
+import { sendChatMessage, captureScreen, captureWindow, reconnect } from "../api";
 
 const noop = () => {};
 
@@ -252,5 +253,138 @@ describe("ControlBar — DH-BUG-11: send with capture returns ImageContent objec
       expect(captureWindow).not.toHaveBeenCalled();
       expect(sendChatMessage).toHaveBeenCalledWith(undefined, "hello", undefined);
     });
+  });
+});
+
+describe("ControlBar — DH-BUG-13: Reconnect button", () => {
+  beforeEach(() => {
+    vi.mocked(reconnect).mockClear();
+    vi.mocked(reconnect).mockResolvedValue(undefined);
+  });
+
+  it("AC-1: does NOT render Reconnect button when connectionStatus is 'connected'", () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "connected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+    const { queryByTitle } = renderControlBar();
+    expect(queryByTitle("Reconnect")).toBeNull();
+  });
+
+  it("AC-2: renders Reconnect button when connectionStatus is 'disconnected'", () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+    const { getByTitle } = renderControlBar();
+    expect(getByTitle("Reconnect")).toBeTruthy();
+  });
+
+  it("AC-3: renders Reconnect button when connectionStatus is 'restart-required'", () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "restart-required",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+    const { getByTitle } = renderControlBar();
+    expect(getByTitle("Reconnect")).toBeTruthy();
+  });
+
+  it("AC-4: calls reconnect() RPC exactly once when button is clicked", async () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+    const { getByTitle } = renderControlBar();
+    fireEvent.click(getByTitle("Reconnect"));
+
+    await vi.waitFor(() => {
+      expect(reconnect).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("AC-5: button is disabled and shows 'Reconnecting' while in-flight", async () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+
+    let resolveRpc!: () => void;
+    vi.mocked(reconnect).mockReturnValue(
+      new Promise<void>((res) => { resolveRpc = res; }),
+    );
+
+    const { getByTitle } = renderControlBar();
+    fireEvent.click(getByTitle("Reconnect"));
+
+    await vi.waitFor(() => {
+      const btn = getByTitle("Reconnect");
+      expect(btn.textContent).toMatch(/Reconnecting/);
+      expect((btn as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    resolveRpc();
+  });
+
+  it("AC-6 success: resets isReconnecting to false after reconnect() resolves", async () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+    vi.mocked(reconnect).mockResolvedValue(undefined);
+
+    const { getByTitle } = renderControlBar();
+    await act(async () => {
+      fireEvent.click(getByTitle("Reconnect"));
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    const btn = getByTitle("Reconnect");
+    expect(btn.textContent).toMatch(/Reconnect$/);
+    expect((btn as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("AC-6 error: resets isReconnecting to false after reconnect() rejects", async () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+    vi.mocked(reconnect).mockRejectedValue(new Error("connection refused"));
+
+    const { getByTitle } = renderControlBar();
+    await act(async () => {
+      fireEvent.click(getByTitle("Reconnect"));
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    const btn = getByTitle("Reconnect");
+    expect((btn as HTMLButtonElement).disabled).toBe(false);
   });
 });
