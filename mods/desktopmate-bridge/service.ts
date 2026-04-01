@@ -52,7 +52,13 @@ async function handleMessage(
   event: MessageEvent,
   config: Config,
 ): Promise<void> {
-  const msg = JSON.parse(event.data as string);
+  let msg: Record<string, unknown>;
+  try {
+    msg = JSON.parse(event.data as string) as Record<string, unknown>;
+  } catch {
+    await signals.send("dm-connection-status", { status: "error" } as never);
+    return;
+  }
   switch (msg.type) {
     case "authorize_success":
       _connectionId = (msg.connection_id as string | undefined) ?? null;
@@ -151,7 +157,7 @@ function startRpcServer(config: Config) {
       agent_id: z.string(),
       fastapi_rest_url: z.string(),
       fastapi_ws_url: z.string(),
-      fastapi_token: z.string(),
+      fastapi_token: z.string().optional().default(""),
       homunculus_api_url: z.string(),
       tts_reference_id: z.string(),
     }),
@@ -179,7 +185,6 @@ function startRpcServer(config: Config) {
         agent_id: config.fastapi.agent_id,
         fastapi_rest_url: config.fastapi.rest_url,
         fastapi_ws_url: config.fastapi.ws_url,
-        fastapi_token: config.fastapi.token,
         homunculus_api_url: config.homunculus.api_url,
         tts_reference_id: config.tts.reference_id,
       },
@@ -216,6 +221,7 @@ async function connectWithRetry(
   vrm: Vrm,
   retryState: RetryState,
 ): Promise<void> {
+  if (_ws) _ws.onclose = null;
   const ws = new WebSocket(config.fastapi.ws_url);
   _ws = ws;
 
@@ -310,7 +316,6 @@ async function broadcastConfig(config: Config): Promise<void> {
     agent_id: config.fastapi.agent_id,
     fastapi_rest_url: config.fastapi.rest_url,
     fastapi_ws_url: config.fastapi.ws_url,
-    fastapi_token: config.fastapi.token,
     homunculus_api_url: config.homunculus.api_url,
     tts_reference_id: config.tts.reference_id,
   });

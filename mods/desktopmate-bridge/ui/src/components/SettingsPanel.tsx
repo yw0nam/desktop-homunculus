@@ -42,7 +42,7 @@ export function SettingsPanel() {
       <SettingInput label="agent_id" value={form.agent_id} onChange={(v) => handleChange("agent_id", v)} />
       <SettingInput label="FastAPI REST URL" value={form.fastapi_rest_url} onChange={(v) => handleChange("fastapi_rest_url", v)} />
       <SettingInput label="FastAPI WS URL" value={form.fastapi_ws_url} onChange={(v) => handleChange("fastapi_ws_url", v)} />
-      <SettingInput label="Token" value={form.fastapi_token} onChange={(v) => handleChange("fastapi_token", v)} type="password" />
+      <SettingInput label="Token" value={form.fastapi_token ?? ""} onChange={(v) => handleChange("fastapi_token", v)} type="password" />
       <SettingInput label="Homunculus API URL" value={form.homunculus_api_url} onChange={(v) => handleChange("homunculus_api_url", v)} />
       <SettingInput label="TTS Reference ID" value={form.tts_reference_id} onChange={(v) => handleChange("tts_reference_id", v)} />
       <button
