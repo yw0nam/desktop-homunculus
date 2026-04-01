@@ -17,6 +17,7 @@ export class TtsChunkQueue {
   private timeoutHandle: ReturnType<typeof setTimeout> | null = null;
   private readonly processor: ChunkProcessor;
   private processingChain: Promise<void> = Promise.resolve();
+  private generation = 0;
 
   constructor(processor: ChunkProcessor) {
     this.processor = processor;
@@ -35,6 +36,7 @@ export class TtsChunkQueue {
     this.cancelTimeout();
     this.buffer.clear();
     this.expectedSequence = 0;
+    this.generation++;
     this.processingChain = Promise.resolve();
   }
 
@@ -55,8 +57,12 @@ export class TtsChunkQueue {
   }
 
   private scheduleProcessor(chunk: TtsChunk): void {
+    const capturedGeneration = this.generation;
     this.processingChain = this.processingChain
-      .then(() => this.processor(chunk))
+      .then(() => {
+        if (this.generation !== capturedGeneration) return;
+        return this.processor(chunk);
+      })
       .catch(console.error);
   }
 

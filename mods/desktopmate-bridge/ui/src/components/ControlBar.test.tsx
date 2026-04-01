@@ -114,6 +114,61 @@ describe("ControlBar — drag handle element", () => {
   });
 });
 
+describe("ControlBar — DH-BUG-15: dragPending mouseup listener leak", () => {
+  it("does NOT attach window mousemove/mouseup listeners when mouseup fires before wv.info() resolves", async () => {
+    const { Webview } = await import("@hmcs/sdk");
+    let resolveInfo!: (v: { offset: [number, number] }) => void;
+    vi.mocked(Webview.current)!.mockReturnValue({
+      info: vi.fn().mockReturnValue(new Promise<{ offset: [number, number] }>((res) => { resolveInfo = res; })),
+      setOffset: vi.fn().mockResolvedValue(undefined),
+    } as ReturnType<typeof Webview.current>);
+
+    const addSpy = vi.spyOn(window, "addEventListener");
+
+    const { getByTitle } = renderControlBar();
+    const handle = getByTitle("Drag");
+
+    // Start drag (triggers await wv.info())
+    fireEvent.mouseDown(handle);
+
+    // mouseup fires on handle before info() resolves → dragPending = false
+    fireEvent.mouseUp(handle);
+
+    // Now resolve info()
+    resolveInfo({ offset: [0, 0] });
+    await vi.waitFor(() => {});
+
+    const calls = addSpy.mock.calls.map(([ev]) => ev);
+    expect(calls).not.toContain("mousemove");
+    expect(calls).not.toContain("mouseup");
+
+    addSpy.mockRestore();
+  });
+
+  it("attaches window mousemove/mouseup listeners when mouseup does NOT fire before wv.info() resolves", async () => {
+    const { Webview } = await import("@hmcs/sdk");
+    vi.mocked(Webview.current)!.mockReturnValue({
+      info: vi.fn().mockResolvedValue({ offset: [0, 0] }),
+      setOffset: vi.fn().mockResolvedValue(undefined),
+    } as ReturnType<typeof Webview.current>);
+
+    const addSpy = vi.spyOn(window, "addEventListener");
+
+    const { getByTitle } = renderControlBar();
+    const handle = getByTitle("Drag");
+
+    fireEvent.mouseDown(handle);
+
+    await vi.waitFor(() => {
+      const calls = addSpy.mock.calls.map(([ev]) => ev);
+      expect(calls).toContain("mousemove");
+      expect(calls).toContain("mouseup");
+    });
+
+    addSpy.mockRestore();
+  });
+});
+
 describe("ControlBar — DH-BUG-12: drag dynamic scale + RAF throttle", () => {
   beforeEach(() => {
     mockWebview.info.mockClear();

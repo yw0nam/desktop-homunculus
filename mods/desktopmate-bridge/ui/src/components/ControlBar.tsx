@@ -83,6 +83,7 @@ export function ControlBar({
     startOffset: [number, number];
     scale: number;
   } | null>(null);
+  const dragPending = useRef<boolean>(false);
   const rafRef = useRef<number | null>(null);
   const latestMoveEventRef = useRef<MouseEvent | null>(null);
 
@@ -129,8 +130,10 @@ export function ControlBar({
     e.stopPropagation();
     const wv = Webview.current();
     if (!wv) return;
+    dragPending.current = true;
     try {
       const info = await wv.info();
+      if (!dragPending.current) return;
       const scale =
         info.size?.width > 0 && info.viewportSize?.width
           ? info.viewportSize.width / info.size.width
@@ -145,6 +148,8 @@ export function ControlBar({
       window.addEventListener("mouseup", handleDragEnd);
     } catch {
       // engine unavailable
+    } finally {
+      dragPending.current = false;
     }
   }
 
@@ -192,6 +197,7 @@ export function ControlBar({
           tabIndex={0}
           className="text-white/60 text-xs px-1 hover:text-white cursor-grab active:cursor-grabbing"
           onMouseDown={handleDragStart}
+          onMouseUp={() => { dragPending.current = false; }}
           title="Drag"
         >
           ⠿
