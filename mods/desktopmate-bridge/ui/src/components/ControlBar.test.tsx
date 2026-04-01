@@ -1,20 +1,23 @@
 // @vitest-environment happy-dom
 import { vi, describe, it, expect, afterEach, beforeEach } from "vitest";
-import { render, fireEvent, cleanup } from "@testing-library/react";
+import { render, fireEvent, cleanup, act } from "@testing-library/react";
 
 afterEach(() => cleanup());
 
-vi.mock("@hmcs/sdk", () => {
-  const mockWebview = {
-    info: vi.fn().mockResolvedValue({ offset: [0, 0] }),
-    setOffset: vi.fn().mockResolvedValue(undefined),
-  };
-  return {
-    Webview: {
-      current: vi.fn().mockReturnValue(mockWebview),
-    },
-  };
-});
+const mockWebview = {
+  info: vi.fn().mockResolvedValue({
+    offset: [0, 0] as [number, number],
+    size: { width: 400, height: 300 },
+    viewportSize: { width: 800, height: 600 },
+  }),
+  setOffset: vi.fn().mockResolvedValue(undefined),
+};
+
+vi.mock("@hmcs/sdk", () => ({
+  Webview: {
+    current: vi.fn().mockReturnValue(mockWebview),
+  },
+}));
 
 vi.mock("../store", () => ({
   useStore: vi.fn().mockReturnValue({
@@ -32,11 +35,12 @@ vi.mock("../api", () => ({
   interruptStream: vi.fn(),
   captureScreen: vi.fn().mockResolvedValue({ base64: "screen-base64" }),
   captureWindow: vi.fn().mockResolvedValue({ base64: "window-base64" }),
+  reconnect: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { ControlBar } from "./ControlBar";
 import { useStore } from "../store";
-import { sendChatMessage, captureScreen, captureWindow } from "../api";
+import { sendChatMessage, captureScreen, captureWindow, reconnect } from "../api";
 
 const noop = () => {};
 
@@ -165,7 +169,51 @@ describe("ControlBar — DH-BUG-15: dragPending mouseup listener leak", () => {
   });
 });
 
-describe("ControlBar — send with capture", () => {
+describe("ControlBar — DH-BUG-12: drag dynamic scale + RAF throttle", () => {
+  beforeEach(() => {
+    mockWebview.info.mockClear();
+    mockWebview.setOffset.mockClear();
+    mockWebview.info.mockResolvedValue({
+      offset: [0, 0] as [number, number],
+      size: { width: 400, height: 300 },
+      viewportSize: { width: 800, height: 600 },
+    });
+  });
+
+  it("handleDragStart calls wv.info() to read offset, size, viewportSize", async () => {
+    const { getByTitle } = renderControlBar();
+    const handle = getByTitle("Drag");
+
+    await act(async () => {
+      fireEvent.mouseDown(handle, { clientX: 100, clientY: 100 });
+      // allow the async handleDragStart to settle
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    expect(mockWebview.info).toHaveBeenCalled();
+  });
+
+  it("does not call setOffset synchronously on handleDragMove (RAF throttle)", async () => {
+    const { getByTitle } = renderControlBar();
+    const handle = getByTitle("Drag");
+
+    await act(async () => {
+      fireEvent.mouseDown(handle, { clientX: 0, clientY: 0 });
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    // Trigger mousemove — setOffset should NOT be called synchronously
+    // because it's wrapped in requestAnimationFrame
+    fireEvent.mouseMove(window, { clientX: 50, clientY: 50 });
+
+    // Synchronously after mousemove, setOffset should not have been called yet
+    // (RAF callback is deferred)
+    // We just verify the absence of immediate calls
+    expect(mockWebview.setOffset).not.toHaveBeenCalled();
+  });
+});
+
+describe("ControlBar — DH-BUG-11: send with capture returns ImageContent objects", () => {
   beforeEach(() => {
     vi.mocked(sendChatMessage).mockClear();
     vi.mocked(captureScreen).mockClear();
@@ -194,7 +242,7 @@ describe("ControlBar — send with capture", () => {
     expect(captureScreen).not.toHaveBeenCalled();
   });
 
-  it("captures fullscreen and attaches image when captureActive=true and captureMode=fullscreen", async () => {
+  it("captures fullscreen and attaches ImageContent when captureActive=true and captureMode=fullscreen", async () => {
     vi.mocked(useStore).mockReturnValue({
       isTyping: false,
       connectionStatus: "disconnected",
@@ -213,12 +261,12 @@ describe("ControlBar — send with capture", () => {
       expect(sendChatMessage).toHaveBeenCalledWith(
         undefined,
         "hello",
-        ["data:image/png;base64,screen-base64"],
+        [{ type: "image_url", image_url: { url: "data:image/png;base64,screen-base64", detail: "auto" } }],
       );
     });
   });
 
-  it("captures window and attaches image when captureActive=true and captureMode=window with selectedWindowId", async () => {
+  it("captures window and attaches ImageContent when captureActive=true and captureMode=window with selectedWindowId", async () => {
     vi.mocked(useStore).mockReturnValue({
       isTyping: false,
       connectionStatus: "disconnected",
@@ -237,7 +285,7 @@ describe("ControlBar — send with capture", () => {
       expect(sendChatMessage).toHaveBeenCalledWith(
         undefined,
         "hello",
-        ["data:image/png;base64,window-base64"],
+        [{ type: "image_url", image_url: { url: "data:image/png;base64,window-base64", detail: "auto" } }],
       );
     });
   });
@@ -260,5 +308,138 @@ describe("ControlBar — send with capture", () => {
       expect(captureWindow).not.toHaveBeenCalled();
       expect(sendChatMessage).toHaveBeenCalledWith(undefined, "hello", undefined);
     });
+  });
+});
+
+describe("ControlBar — DH-BUG-13: Reconnect button", () => {
+  beforeEach(() => {
+    vi.mocked(reconnect).mockClear();
+    vi.mocked(reconnect).mockResolvedValue(undefined);
+  });
+
+  it("AC-1: does NOT render Reconnect button when connectionStatus is 'connected'", () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "connected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+    const { queryByTitle } = renderControlBar();
+    expect(queryByTitle("Reconnect")).toBeNull();
+  });
+
+  it("AC-2: renders Reconnect button when connectionStatus is 'disconnected'", () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+    const { getByTitle } = renderControlBar();
+    expect(getByTitle("Reconnect")).toBeTruthy();
+  });
+
+  it("AC-3: renders Reconnect button when connectionStatus is 'restart-required'", () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "restart-required",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+    const { getByTitle } = renderControlBar();
+    expect(getByTitle("Reconnect")).toBeTruthy();
+  });
+
+  it("AC-4: calls reconnect() RPC exactly once when button is clicked", async () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+    const { getByTitle } = renderControlBar();
+    fireEvent.click(getByTitle("Reconnect"));
+
+    await vi.waitFor(() => {
+      expect(reconnect).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("AC-5: button is disabled and shows 'Reconnecting' while in-flight", async () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+
+    let resolveRpc!: () => void;
+    vi.mocked(reconnect).mockReturnValue(
+      new Promise<void>((res) => { resolveRpc = res; }),
+    );
+
+    const { getByTitle } = renderControlBar();
+    fireEvent.click(getByTitle("Reconnect"));
+
+    await vi.waitFor(() => {
+      const btn = getByTitle("Reconnect");
+      expect(btn.textContent).toMatch(/Reconnecting/);
+      expect((btn as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    resolveRpc();
+  });
+
+  it("AC-6 success: resets isReconnecting to false after reconnect() resolves", async () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+    vi.mocked(reconnect).mockResolvedValue(undefined);
+
+    const { getByTitle } = renderControlBar();
+    await act(async () => {
+      fireEvent.click(getByTitle("Reconnect"));
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    const btn = getByTitle("Reconnect");
+    expect(btn.textContent).toMatch(/Reconnect$/);
+    expect((btn as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("AC-6 error: resets isReconnecting to false after reconnect() rejects", async () => {
+    vi.mocked(useStore).mockReturnValue({
+      isTyping: false,
+      connectionStatus: "disconnected",
+      activeSessionId: null,
+      addUserMessage: vi.fn(),
+      captureMode: "fullscreen",
+      captureSelectedWindowId: null,
+    });
+    vi.mocked(reconnect).mockRejectedValue(new Error("connection refused"));
+
+    const { getByTitle } = renderControlBar();
+    await act(async () => {
+      fireEvent.click(getByTitle("Reconnect"));
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    const btn = getByTitle("Reconnect");
+    expect((btn as HTMLButtonElement).disabled).toBe(false);
   });
 });
