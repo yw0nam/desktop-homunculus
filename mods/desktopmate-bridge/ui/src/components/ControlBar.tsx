@@ -2,7 +2,7 @@ import { useRef, useState, useCallback } from "react";
 import { Webview } from "@hmcs/sdk";
 import { useStore } from "../store";
 import { sendChatMessage, interruptStream, captureScreen, captureWindow } from "../api";
-import type { ConnectionStatus } from "../types";
+import type { ConnectionStatus, ImageContent } from "../types";
 
 interface ControlBarProps {
   onToggleChat: () => void;
@@ -12,20 +12,18 @@ interface ControlBarProps {
   captureActive: boolean;
 }
 
-const DRAG_SCALE = 0.002;
-
 async function captureImages(
   captureMode: "fullscreen" | "window",
   captureSelectedWindowId: string | null,
-): Promise<string[] | undefined> {
+): Promise<ImageContent[] | undefined> {
   try {
     if (captureMode === "fullscreen") {
       const { base64 } = await captureScreen();
-      return [`data:image/png;base64,${base64}`];
+      return [{ type: "image_url", image_url: { url: `data:image/png;base64,${base64}`, detail: "auto" } }];
     }
     if (captureSelectedWindowId) {
       const { base64 } = await captureWindow(captureSelectedWindowId);
-      return [`data:image/png;base64,${base64}`];
+      return [{ type: "image_url", image_url: { url: `data:image/png;base64,${base64}`, detail: "auto" } }];
     }
   } catch {
     // capture failure is non-fatal; send message without image
@@ -60,7 +58,9 @@ export function ControlBar({
     startX: number;
     startY: number;
     startOffset: [number, number];
+    scale: number;
   } | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const statusLabel = STATUS_LABELS[connectionStatus];
 
@@ -94,10 +94,15 @@ export function ControlBar({
     if (!wv) return;
     try {
       const info = await wv.info();
+      const scale =
+        info.size && info.viewportSize
+          ? info.viewportSize.width / info.size.width
+          : 0.002;
       dragState.current = {
         startX: e.clientX,
         startY: e.clientY,
         startOffset: info.offset,
+        scale,
       };
       window.addEventListener("mousemove", handleDragMove);
       window.addEventListener("mouseup", handleDragEnd);
@@ -108,17 +113,27 @@ export function ControlBar({
 
   const handleDragMove = useCallback((e: MouseEvent) => {
     if (!dragState.current) return;
-    const wv = Webview.current();
-    if (!wv) return;
-    const dx = (e.clientX - dragState.current.startX) * DRAG_SCALE;
-    const dy = (e.clientY - dragState.current.startY) * DRAG_SCALE;
-    wv.setOffset([
-      dragState.current.startOffset[0] + dx,
-      dragState.current.startOffset[1] - dy,
-    ]).catch(() => {});
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      if (!dragState.current) return;
+      const wv = Webview.current();
+      if (!wv) return;
+      const { startX, startY, startOffset, scale } = dragState.current;
+      const dx = (e.clientX - startX) * scale;
+      const dy = (e.clientY - startY) * scale;
+      wv.setOffset([
+        startOffset[0] + dx,
+        startOffset[1] - dy,
+      ]).catch(() => {});
+    });
   }, []);
 
   const handleDragEnd = useCallback(() => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
     dragState.current = null;
     window.removeEventListener("mousemove", handleDragMove);
     window.removeEventListener("mouseup", handleDragEnd);

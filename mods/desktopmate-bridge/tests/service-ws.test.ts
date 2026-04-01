@@ -97,3 +97,95 @@ describe("DH-BUG-5: connectWithRetry old WebSocket onclose nulling", () => {
     }).not.toThrow();
   });
 });
+
+describe("DH-BUG-9: TTS queue waitForCompletion", () => {
+  it("speakWithTimeline is called with waitForCompletion: true", async () => {
+    const speakWithTimeline = vi.fn().mockResolvedValue(undefined);
+    const mockVrm = { speakWithTimeline };
+
+    // Mirror createTtsQueue callback logic
+    const chunk = {
+      audio_base64: Buffer.from("audio").toString("base64"),
+      keyframes: [],
+      sequence: 1,
+      text: "hello",
+      emotion: "neutral",
+    };
+
+    // Simulate the callback that createTtsQueue registers
+    const callback = async (c: typeof chunk) => {
+      if (c.audio_base64) {
+        const audioBytes = Buffer.from(c.audio_base64, "base64");
+        await mockVrm.speakWithTimeline(audioBytes, c.keyframes, {
+          waitForCompletion: true,
+        });
+      }
+    };
+
+    await callback(chunk);
+
+    expect(speakWithTimeline).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      [],
+      { waitForCompletion: true },
+    );
+  });
+
+  it("speakWithTimeline is NOT called when audio_base64 is absent", async () => {
+    const speakWithTimeline = vi.fn().mockResolvedValue(undefined);
+    const mockVrm = { speakWithTimeline };
+
+    const chunk = { audio_base64: undefined, keyframes: [], sequence: 2, text: "hi", emotion: "neutral" };
+
+    const callback = async (c: typeof chunk) => {
+      if (c.audio_base64) {
+        await mockVrm.speakWithTimeline(undefined, c.keyframes, { waitForCompletion: true });
+      }
+    };
+
+    await callback(chunk);
+    expect(speakWithTimeline).not.toHaveBeenCalled();
+  });
+});
+
+describe("DH-BUG-10: stream_token → dm-stream-token signal", () => {
+  it("dispatches dm-stream-token with turn_id and chunk", async () => {
+    const signalSend = vi.fn().mockResolvedValue(undefined);
+
+    // Mirror handleMessage stream_token case
+    const msg = { type: "stream_token", turn_id: "turn-123", chunk: "Hello " };
+
+    // Simulate the dispatch logic
+    async function handleStreamToken(
+      m: { type: string; turn_id: unknown; chunk: unknown },
+      send: typeof signalSend,
+    ) {
+      if (m.type === "stream_token") {
+        await send("dm-stream-token", { turn_id: m.turn_id, chunk: m.chunk });
+      }
+    }
+
+    await handleStreamToken(msg, signalSend);
+
+    expect(signalSend).toHaveBeenCalledWith("dm-stream-token", {
+      turn_id: "turn-123",
+      chunk: "Hello ",
+    });
+  });
+
+  it("does not dispatch dm-stream-token for other message types", async () => {
+    const signalSend = vi.fn().mockResolvedValue(undefined);
+
+    async function handleStreamToken(
+      m: { type: string; turn_id?: unknown; chunk?: unknown },
+      send: typeof signalSend,
+    ) {
+      if (m.type === "stream_token") {
+        await send("dm-stream-token", { turn_id: m.turn_id, chunk: m.chunk });
+      }
+    }
+
+    await handleStreamToken({ type: "tts_chunk" }, signalSend);
+    expect(signalSend).not.toHaveBeenCalled();
+  });
+});

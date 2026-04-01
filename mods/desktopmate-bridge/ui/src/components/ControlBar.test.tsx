@@ -1,20 +1,23 @@
 // @vitest-environment happy-dom
 import { vi, describe, it, expect, afterEach, beforeEach } from "vitest";
-import { render, fireEvent, cleanup } from "@testing-library/react";
+import { render, fireEvent, cleanup, act } from "@testing-library/react";
 
 afterEach(() => cleanup());
 
-vi.mock("@hmcs/sdk", () => {
-  const mockWebview = {
-    info: vi.fn().mockResolvedValue({ offset: [0, 0] }),
-    setOffset: vi.fn().mockResolvedValue(undefined),
-  };
-  return {
-    Webview: {
-      current: vi.fn().mockReturnValue(mockWebview),
-    },
-  };
-});
+const mockWebview = {
+  info: vi.fn().mockResolvedValue({
+    offset: [0, 0] as [number, number],
+    size: { width: 400, height: 300 },
+    viewportSize: { width: 800, height: 600 },
+  }),
+  setOffset: vi.fn().mockResolvedValue(undefined),
+};
+
+vi.mock("@hmcs/sdk", () => ({
+  Webview: {
+    current: vi.fn().mockReturnValue(mockWebview),
+  },
+}));
 
 vi.mock("../store", () => ({
   useStore: vi.fn().mockReturnValue({
@@ -110,7 +113,51 @@ describe("ControlBar — drag handle element", () => {
   });
 });
 
-describe("ControlBar — send with capture", () => {
+describe("ControlBar — DH-BUG-12: drag dynamic scale + RAF throttle", () => {
+  beforeEach(() => {
+    mockWebview.info.mockClear();
+    mockWebview.setOffset.mockClear();
+    mockWebview.info.mockResolvedValue({
+      offset: [0, 0] as [number, number],
+      size: { width: 400, height: 300 },
+      viewportSize: { width: 800, height: 600 },
+    });
+  });
+
+  it("handleDragStart calls wv.info() to read offset, size, viewportSize", async () => {
+    const { getByTitle } = renderControlBar();
+    const handle = getByTitle("Drag");
+
+    await act(async () => {
+      fireEvent.mouseDown(handle, { clientX: 100, clientY: 100 });
+      // allow the async handleDragStart to settle
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    expect(mockWebview.info).toHaveBeenCalled();
+  });
+
+  it("does not call setOffset synchronously on handleDragMove (RAF throttle)", async () => {
+    const { getByTitle } = renderControlBar();
+    const handle = getByTitle("Drag");
+
+    await act(async () => {
+      fireEvent.mouseDown(handle, { clientX: 0, clientY: 0 });
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    // Trigger mousemove — setOffset should NOT be called synchronously
+    // because it's wrapped in requestAnimationFrame
+    fireEvent.mouseMove(window, { clientX: 50, clientY: 50 });
+
+    // Synchronously after mousemove, setOffset should not have been called yet
+    // (RAF callback is deferred)
+    // We just verify the absence of immediate calls
+    expect(mockWebview.setOffset).not.toHaveBeenCalled();
+  });
+});
+
+describe("ControlBar — DH-BUG-11: send with capture returns ImageContent objects", () => {
   beforeEach(() => {
     vi.mocked(sendChatMessage).mockClear();
     vi.mocked(captureScreen).mockClear();
@@ -139,7 +186,7 @@ describe("ControlBar — send with capture", () => {
     expect(captureScreen).not.toHaveBeenCalled();
   });
 
-  it("captures fullscreen and attaches image when captureActive=true and captureMode=fullscreen", async () => {
+  it("captures fullscreen and attaches ImageContent when captureActive=true and captureMode=fullscreen", async () => {
     vi.mocked(useStore).mockReturnValue({
       isTyping: false,
       connectionStatus: "disconnected",
@@ -158,12 +205,12 @@ describe("ControlBar — send with capture", () => {
       expect(sendChatMessage).toHaveBeenCalledWith(
         undefined,
         "hello",
-        ["data:image/png;base64,screen-base64"],
+        [{ type: "image_url", image_url: { url: "data:image/png;base64,screen-base64", detail: "auto" } }],
       );
     });
   });
 
-  it("captures window and attaches image when captureActive=true and captureMode=window with selectedWindowId", async () => {
+  it("captures window and attaches ImageContent when captureActive=true and captureMode=window with selectedWindowId", async () => {
     vi.mocked(useStore).mockReturnValue({
       isTyping: false,
       connectionStatus: "disconnected",
@@ -182,7 +229,7 @@ describe("ControlBar — send with capture", () => {
       expect(sendChatMessage).toHaveBeenCalledWith(
         undefined,
         "hello",
-        ["data:image/png;base64,window-base64"],
+        [{ type: "image_url", image_url: { url: "data:image/png;base64,window-base64", detail: "auto" } }],
       );
     });
   });

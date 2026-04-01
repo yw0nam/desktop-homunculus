@@ -88,6 +88,12 @@ async function handleMessage(
         content: msg.content,
       });
       break;
+    case "stream_token":
+      await signals.send("dm-stream-token", {
+        turn_id: msg.turn_id,
+        chunk: msg.chunk,
+      });
+      break;
     case "ping":
       sendWsMessage({ type: "pong" });
       break;
@@ -99,7 +105,7 @@ function createTtsQueue(vrm: Vrm): TtsChunkQueue {
     if (chunk.audio_base64) {
       const audioBytes = Buffer.from(chunk.audio_base64, "base64");
       await vrm.speakWithTimeline(audioBytes, chunk.keyframes as TimelineKeyframe[], {
-        waitForCompletion: false,
+        waitForCompletion: true,
       });
     }
     await signals.send("dm-tts-chunk", {
@@ -128,7 +134,10 @@ function startRpcServer(config: Config) {
     input: z.object({
       content: z.string(),
       session_id: z.string().optional(),
-      images: z.array(z.string()).optional(),
+      images: z.array(z.object({
+        type: z.literal("image_url"),
+        image_url: z.object({ url: z.string(), detail: z.string() }),
+      })).optional(),
     }),
     handler: async ({ content, session_id, images }) => {
       sendWsMessage({
