@@ -265,6 +265,7 @@ async function connectWithRetry(
   });
 
   ws.addEventListener("close", async (event) => {
+    if (ws !== _ws) return; // stale socket: reconnect replaced this socket, ignore
     await handleClose(event, config, vrm, retryState);
   });
 }
