@@ -157,7 +157,7 @@ function startRpcServer(config: Config) {
       agent_id: z.string(),
       fastapi_rest_url: z.string(),
       fastapi_ws_url: z.string(),
-      fastapi_token: z.string(),
+      fastapi_token: z.string().optional().default(""),
       homunculus_api_url: z.string(),
       tts_reference_id: z.string(),
     }),
