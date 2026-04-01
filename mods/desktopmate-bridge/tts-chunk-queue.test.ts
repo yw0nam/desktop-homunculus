@@ -69,6 +69,65 @@ describe("TtsChunkQueue", () => {
     });
   });
 
+  describe("DH-BUG-16: reset() cancels in-flight processing chain", () => {
+    // Uses real timers for microtask-level control
+    beforeEach(() => vi.useRealTimers());
+    afterEach(() => vi.useFakeTimers());
+
+    it("skips processor calls that were scheduled before reset()", async () => {
+      const resolvers: Array<() => void> = [];
+      const callOrder: string[] = [];
+
+      const slowQueue = new TtsChunkQueue(async (chunk) => {
+        callOrder.push(`start-${chunk.sequence}`);
+        await new Promise<void>((res) => resolvers.push(res));
+        callOrder.push(`end-${chunk.sequence}`);
+      });
+
+      slowQueue.enqueue(makeChunk(0));
+      slowQueue.enqueue(makeChunk(1));
+
+      // Let chunk-0 processor start
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+      expect(callOrder).toContain("start-0");
+
+      // Reset while chunk-0 is in-flight
+      slowQueue.reset();
+
+      // Resolve chunk-0 processor (already started, end runs but that's ok)
+      resolvers[0]?.();
+      for (let i = 0; i < 20; i++) await Promise.resolve();
+
+      // chunk-1 processor must NOT have been called
+      expect(callOrder.filter((e) => e.startsWith("start-1"))).toHaveLength(0);
+    });
+
+    it("after reset(), new enqueued chunks are processed normally", async () => {
+      const resolvers: Array<() => void> = [];
+
+      const slowQueue = new TtsChunkQueue(async (_chunk) => {
+        await new Promise<void>((res) => resolvers.push(res));
+      });
+
+      slowQueue.enqueue(makeChunk(0));
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+
+      // Reset and immediately resolve the in-flight processor
+      slowQueue.reset();
+      resolvers[0]?.();
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+
+      // After reset, enqueue from seq 0 again
+      const newProcessed: TtsChunk[] = [];
+      const freshQueue = new TtsChunkQueue(async (chunk) => {
+        newProcessed.push(chunk);
+      });
+      freshQueue.enqueue(makeChunk(0));
+      await freshQueue.drain();
+      expect(newProcessed.map((c) => c.sequence)).toEqual([0]);
+    });
+  });
+
   describe("reset()", () => {
     it("clears buffer and resets expectedSequence to 0", async () => {
       queue.enqueue(makeChunk(1));

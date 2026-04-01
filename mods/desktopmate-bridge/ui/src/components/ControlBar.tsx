@@ -61,6 +61,7 @@ export function ControlBar({
     startY: number;
     startOffset: [number, number];
   } | null>(null);
+  const dragPending = useRef<boolean>(false);
 
   const statusLabel = STATUS_LABELS[connectionStatus];
 
@@ -92,8 +93,10 @@ export function ControlBar({
     e.stopPropagation();
     const wv = Webview.current();
     if (!wv) return;
+    dragPending.current = true;
     try {
       const info = await wv.info();
+      if (!dragPending.current) return;
       dragState.current = {
         startX: e.clientX,
         startY: e.clientY,
@@ -103,6 +106,8 @@ export function ControlBar({
       window.addEventListener("mouseup", handleDragEnd);
     } catch {
       // engine unavailable
+    } finally {
+      dragPending.current = false;
     }
   }
 
@@ -133,6 +138,7 @@ export function ControlBar({
           tabIndex={0}
           className="text-white/60 text-xs px-1 hover:text-white cursor-grab active:cursor-grabbing"
           onMouseDown={handleDragStart}
+          onMouseUp={() => { dragPending.current = false; }}
           title="Drag"
         >
           ⠿
