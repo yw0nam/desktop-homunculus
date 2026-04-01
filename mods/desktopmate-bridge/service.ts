@@ -88,6 +88,12 @@ async function handleMessage(
         content: msg.content,
       });
       break;
+    case "stream_token":
+      await signals.send("dm-stream-token", {
+        turn_id: msg.turn_id,
+        chunk: msg.chunk,
+      });
+      break;
     case "ping":
       sendWsMessage({ type: "pong" });
       break;
@@ -99,7 +105,7 @@ function createTtsQueue(vrm: Vrm): TtsChunkQueue {
     if (chunk.audio_base64) {
       const audioBytes = Buffer.from(chunk.audio_base64, "base64");
       await vrm.speakWithTimeline(audioBytes, chunk.keyframes as TimelineKeyframe[], {
-        waitForCompletion: false,
+        waitForCompletion: true,
       });
     }
     await signals.send("dm-tts-chunk", {
@@ -128,7 +134,10 @@ function startRpcServer(config: Config) {
     input: z.object({
       content: z.string(),
       session_id: z.string().optional(),
-      images: z.array(z.string()).optional(),
+      images: z.array(z.object({
+        type: z.literal("image_url"),
+        image_url: z.object({ url: z.string(), detail: z.string() }),
+      })).optional(),
     }),
     handler: async ({ content, session_id, images }) => {
       sendWsMessage({
@@ -203,6 +212,20 @@ function startRpcServer(config: Config) {
     input: z.object({ id: z.string() }),
     handler: async ({ id }) => captureWindow(id),
   });
+  const reconnectMethod = rpc.method({
+    description: "Re-establish WebSocket connection to FastAPI backend",
+    handler: async () => {
+      _authFailed = false;
+      _connectionStatus = "disconnected";
+      if (_ws) {
+        _ws.onclose = null;
+        _ws.close();
+      }
+      await signals.send("dm-connection-status", { status: "disconnected" });
+      connectWithRetry(config, vrm, { attempts: 0 }).catch(console.error);
+      return { ok: true };
+    },
+  });
   return rpc.serve({
     methods: {
       sendMessage,
@@ -212,6 +235,7 @@ function startRpcServer(config: Config) {
       listWindows: listWindowsMethod,
       captureScreen: captureScreenMethod,
       captureWindow: captureWindowMethod,
+      reconnect: reconnectMethod,
     },
   });
 }
@@ -241,6 +265,7 @@ async function connectWithRetry(
   });
 
   ws.addEventListener("close", async (event) => {
+    if (ws !== _ws) return; // stale socket: reconnect replaced this socket, ignore
     await handleClose(event, config, vrm, retryState);
   });
 }

@@ -25,3 +25,8 @@ export interface DmConfig {
 }
 
 export type ConnectionStatus = "connected" | "disconnected" | "restart-required";
+
+export interface ImageContent {
+  type: "image_url";
+  image_url: { url: string; detail: "auto" };
+}

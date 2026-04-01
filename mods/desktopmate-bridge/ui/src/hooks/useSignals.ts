@@ -46,6 +46,11 @@ export function useSignals(): void {
         ({ turn_id, session_id }) => startStreaming(turn_id, session_id),
       ),
 
+      subscribe<{ turn_id: string; chunk: string }>(
+        "dm-stream-token",
+        ({ turn_id, chunk }) => appendStreamChunk(turn_id, chunk),
+      ),
+
       subscribe<{ sequence: number; text: string; emotion: string }>(
         "dm-tts-chunk",
         ({ text }) => {
