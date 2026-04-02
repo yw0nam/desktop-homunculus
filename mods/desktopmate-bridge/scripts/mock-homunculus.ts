@@ -1,6 +1,6 @@
 import * as http from "node:http";
 
-const PORT = 3100;
+const PORT = parseInt(process.env.MOCK_PORT || "3100", 10);
 
 // --- RPC response handlers ---
 

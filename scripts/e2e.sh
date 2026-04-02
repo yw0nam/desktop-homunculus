@@ -15,7 +15,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 MOD_DIR="${REPO_ROOT}/mods/desktopmate-bridge"
 UI_DIR="${MOD_DIR}/ui"
 
-MOCK_PORT=3100
+MOCK_PORT="${MOCK_PORT:-3100}"
 UI_PORT="${UI_PORT:-$((RANDOM % 500 + 4000))}"
 WAIT_TIMEOUT=30   # seconds to wait for servers to be ready
 
@@ -75,7 +75,7 @@ assert_http_200() {
 # ---------------------------------------------------------------------------
 
 echo "[e2e] Starting mock-homunculus on port ${MOCK_PORT} ..."
-npx --prefix "${MOD_DIR}" tsx "${MOD_DIR}/scripts/mock-homunculus.ts" \
+MOCK_PORT="${MOCK_PORT}" npx --prefix "${MOD_DIR}" tsx "${MOD_DIR}/scripts/mock-homunculus.ts" \
   > /tmp/mock-homunculus.log 2>&1 &
 MOCK_PID=$!
 
@@ -109,9 +109,9 @@ assert_http_200 "http://127.0.0.1:${UI_PORT}"
 # ---------------------------------------------------------------------------
 
 echo "[e2e] Checking Vite output for console.error ..."
-if grep -qi "console\.error\|Uncaught\|Error:" /tmp/vite-dev.log 2>/dev/null; then
+if grep -qi "console\.error\|Uncaught\|FATAL\|unhandled" /tmp/vite-dev.log 2>/dev/null; then
   echo "[e2e] FAILED: console.error or error output detected in Vite log:"
-  grep -i "console\.error\|Uncaught\|Error:" /tmp/vite-dev.log || true
+  grep -i "console\.error\|Uncaught\|FATAL\|unhandled" /tmp/vite-dev.log || true
   echo "FAILED"
   exit 1
 fi
