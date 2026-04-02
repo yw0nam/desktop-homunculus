@@ -13,7 +13,7 @@ Both servers must be running before starting visual verification.
 ```bash
 # Terminal 1 — mock backend
 cd mods/desktopmate-bridge
-node --import tsx scripts/mock-homunculus.ts
+npx tsx scripts/mock-homunculus.ts
 
 # Terminal 2 — Vite dev server
 cd mods/desktopmate-bridge/ui
