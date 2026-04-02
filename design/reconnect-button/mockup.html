@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ControlBar – Reconnect Button Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 2rem;
+      gap: 3rem;
+      font-family: system-ui, sans-serif;
+    }
+    .scenario-label {
+      color: rgba(255,255,255,0.4);
+      font-size: 0.7rem;
+      text-align: center;
+      margin-bottom: 0.25rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .control-bar-wrapper {
+      width: 380px;
+    }
+    /* Annotation badge */
+    .badge-new {
+      display: inline-block;
+      background: rgba(59, 130, 246, 0.35);
+      border: 1px solid rgba(59, 130, 246, 0.6);
+      color: #93c5fd;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      vertical-align: middle;
+      margin-left: 0.4rem;
+    }
+    .annotation-arrow {
+      color: rgba(59, 130, 246, 0.7);
+      font-size: 0.65rem;
+      margin-top: 0.35rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =========================================================
+       Scenario A: Connected (baseline — no reconnect button)
+  ========================================================== -->
+  <div class="control-bar-wrapper">
+    <div class="scenario-label">Scenario A — connected (baseline)</div>
+    <div class="flex flex-col gap-1 px-2 py-1 bg-black/30 backdrop-blur-sm border-t border-white/10 rounded-b-lg">
+      <!-- Status row -->
+      <div class="text-xs text-white/60 text-center">✔ Connected</div>
+
+      <!-- Input row -->
+      <div class="flex items-center gap-1">
+        <div class="text-white/60 text-xs px-1 hover:text-white cursor-grab" title="Drag">⠿</div>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Session List">☰</button>
+        <input
+          class="flex-1 bg-white/10 text-white text-sm rounded px-2 py-1 outline-none placeholder-white/40"
+          placeholder="Enter message..."
+          disabled
+        />
+        <button class="text-white/80 text-xs px-2 py-1 hover:text-white opacity-30 cursor-not-allowed">Send</button>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Chat History">💬</button>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Settings">⚙</button>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Screen Capture">📷</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       Scenario B: Disconnected — Reconnect button visible
+  ========================================================== -->
+  <div class="control-bar-wrapper">
+    <div class="scenario-label">Scenario B — disconnected <span class="badge-new">NEW</span></div>
+    <div class="flex flex-col gap-1 px-2 py-1 bg-black/30 backdrop-blur-sm border-t border-white/10 rounded-b-lg">
+
+      <!-- Status row: label + reconnect button inline -->
+      <div class="flex items-center justify-center gap-2">
+        <div class="text-xs text-white/60">✖ Disconnected</div>
+        <!-- NEW: Reconnect button -->
+        <button
+          class="text-xs px-2 py-0.5 rounded bg-white/10 border border-white/20 text-white/80
+                 hover:bg-white/20 hover:text-white transition-colors duration-150
+                 active:scale-95"
+          title="Reconnect to backend"
+        >
+          ↺ Reconnect
+        </button>
+      </div>
+
+      <!-- Input row — disabled while disconnected -->
+      <div class="flex items-center gap-1">
+        <div class="text-white/60 text-xs px-1 hover:text-white cursor-grab" title="Drag">⠿</div>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Session List">☰</button>
+        <input
+          class="flex-1 bg-white/10 text-white/30 text-sm rounded px-2 py-1 outline-none placeholder-white/20 cursor-not-allowed"
+          placeholder="Enter message..."
+          disabled
+        />
+        <button class="text-white/30 text-xs px-2 py-1 opacity-30 cursor-not-allowed">Send</button>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Chat History">💬</button>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Settings">⚙</button>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Screen Capture">📷</button>
+      </div>
+    </div>
+    <div class="annotation-arrow">↑ New: inline Reconnect button next to status label</div>
+  </div>
+
+  <!-- =========================================================
+       Scenario C: Restart-required — Reconnect button visible
+  ========================================================== -->
+  <div class="control-bar-wrapper">
+    <div class="scenario-label">Scenario C — restart-required <span class="badge-new">NEW</span></div>
+    <div class="flex flex-col gap-1 px-2 py-1 bg-black/30 backdrop-blur-sm border-t border-white/10 rounded-b-lg">
+
+      <!-- Status row -->
+      <div class="flex items-center justify-center gap-2">
+        <div class="text-xs text-white/60">⚠ Restart required</div>
+        <button
+          class="text-xs px-2 py-0.5 rounded bg-white/10 border border-white/20 text-white/80
+                 hover:bg-white/20 hover:text-white transition-colors duration-150
+                 active:scale-95"
+          title="Reconnect to backend"
+        >
+          ↺ Reconnect
+        </button>
+      </div>
+
+      <!-- Input row -->
+      <div class="flex items-center gap-1">
+        <div class="text-white/60 text-xs px-1 hover:text-white cursor-grab" title="Drag">⠿</div>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Session List">☰</button>
+        <input
+          class="flex-1 bg-white/10 text-white/30 text-sm rounded px-2 py-1 outline-none placeholder-white/20 cursor-not-allowed"
+          placeholder="Enter message..."
+          disabled
+        />
+        <button class="text-white/30 text-xs px-2 py-1 opacity-30 cursor-not-allowed">Send</button>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Chat History">💬</button>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Settings">⚙</button>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Screen Capture">📷</button>
+      </div>
+    </div>
+    <div class="annotation-arrow">↑ Same button for "restart-required" — same RPC call</div>
+  </div>
+
+  <!-- =========================================================
+       Scenario D: Reconnecting (loading state)
+  ========================================================== -->
+  <div class="control-bar-wrapper">
+    <div class="scenario-label">Scenario D — reconnecting (loading state) <span class="badge-new">NEW</span></div>
+    <div class="flex flex-col gap-1 px-2 py-1 bg-black/30 backdrop-blur-sm border-t border-white/10 rounded-b-lg">
+
+      <!-- Status row: button disabled while in-flight -->
+      <div class="flex items-center justify-center gap-2">
+        <div class="text-xs text-white/60">✖ Disconnected</div>
+        <button
+          disabled
+          class="text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-white/30
+                 cursor-not-allowed"
+          title="Reconnecting..."
+        >
+          ↺ Reconnecting…
+        </button>
+      </div>
+
+      <!-- Input row -->
+      <div class="flex items-center gap-1">
+        <div class="text-white/60 text-xs px-1 hover:text-white cursor-grab" title="Drag">⠿</div>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Session List">☰</button>
+        <input
+          class="flex-1 bg-white/10 text-white/30 text-sm rounded px-2 py-1 outline-none placeholder-white/20 cursor-not-allowed"
+          placeholder="Enter message..."
+          disabled
+        />
+        <button class="text-white/30 text-xs px-2 py-1 opacity-30 cursor-not-allowed">Send</button>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Chat History">💬</button>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Settings">⚙</button>
+        <button class="text-white/60 text-xs px-1 hover:text-white" title="Screen Capture">📷</button>
+      </div>
+    </div>
+    <div class="annotation-arrow">↑ Button disabled while RPC in-flight to prevent double-tap</div>
+  </div>
+
+  <!-- bottom spacer -->
+  <div style="height: 2rem"></div>
+
+</body>
+</html>
