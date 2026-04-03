@@ -54,10 +54,31 @@ npx tsx scripts/mock-homunculus.ts   # mock backend 기동
 npx vitest run --config vitest.e2e.config.ts   # E2E 테스트
 ```
 
+## Directory Structure
+
+```
+desktopmate-bridge/
+├── src/                    # Service source files
+│   ├── service.ts          # Entry point (homunculus.service)
+│   ├── screen-capture.ts   # Screen/window capture via node-screenshots
+│   └── tts-chunk-queue.ts  # TTS chunk ordering & buffering
+├── commands/
+│   └── open-chat.ts        # "Chat" menu command (opens/closes chat UI)
+├── scripts/
+│   └── mock-homunculus.ts  # Mock HTTP backend for local E2E testing (port 3100)
+├── tests/
+│   ├── unit/               # Unit tests (no external deps)
+│   └── e2e/                # E2E tests (require real FastAPI backend on :5500)
+├── ui/                     # React chat UI (Vite app)
+├── config.yaml             # Runtime config (fastapi, homunculus, tts)
+├── vitest.config.ts        # Unit test config (includes tests/unit/, ui/src/)
+└── vitest.e2e.config.ts    # E2E test config (includes tests/e2e/)
+```
+
 ## Architecture
 
 Config flow: `config.yaml` → `loadConfig()` → `broadcastConfig()` → `dm-config` signal → UI store `settings`.
-Write-back: `writeFileSync(CONFIG_PATH, yaml.dump(config))` in `service.ts`.
+Write-back: `writeFileSync(CONFIG_PATH, yaml.dump(config))` in `src/service.ts`.
 
 `ConnectionStatus` type is defined in `ui/src/types.ts` (not the store).
 
