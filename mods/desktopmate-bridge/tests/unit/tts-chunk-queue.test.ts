@@ -139,11 +139,15 @@ describe("TtsChunkQueue", () => {
       expect(processed.map((c) => c.sequence)).toEqual([0]);
     });
 
-    it("cancels pending timeout on reset", () => {
+    it("cancels pending timeout on reset", async () => {
       queue.enqueue(makeChunk(1)); // seq 0 missing
       queue.reset();
       vi.advanceTimersByTime(5000);
       expect(processed).toHaveLength(0);
+      // Verify timeout cancellation: expectedSequence restarted at 0 so seq 0 drains immediately
+      queue.enqueue(makeChunk(0));
+      await queue.drain();
+      expect(processed.map((c) => c.sequence)).toEqual([0]);
     });
   });
 
@@ -172,6 +176,11 @@ describe("TtsChunkQueue", () => {
       vi.advanceTimersByTime(5000);
       await queue.drain();
       expect(processed.map((c) => c.sequence)).toEqual([1]);
+      // Verify timeout cancellation: next stream starts cleanly from seq 0
+      processed = [];
+      queue.enqueue(makeChunk(0));
+      await queue.drain();
+      expect(processed.map((c) => c.sequence)).toEqual([0]);
     });
   });
 
@@ -200,6 +209,10 @@ describe("TtsChunkQueue", () => {
       vi.advanceTimersByTime(5000);
       await queue.drain();
       expect(processed.map((c) => c.sequence)).toEqual([0, 1]);
+      // Verify no stray timeout fired: seq 2 should drain immediately without a timeout gap
+      queue.enqueue(makeChunk(2));
+      await queue.drain();
+      expect(processed.map((c) => c.sequence)).toEqual([0, 1, 2]);
     });
   });
 
