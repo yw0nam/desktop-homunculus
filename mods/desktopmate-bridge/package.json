@@ -12,7 +12,7 @@
     "test:e2e": "FASTAPI_URL=http://localhost:5500 vitest run -c vitest.e2e.config.ts"
   },
   "homunculus": {
-    "service": "service.ts",
+    "service": "src/service.ts",
     "menus": [
       {
         "id": "open-desktopmate-chat",

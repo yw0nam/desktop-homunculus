@@ -9,7 +9,7 @@ import { listWindows, captureScreen, captureWindow } from "./screen-capture.js";
 import { TtsChunkQueue, type TtsChunk } from "./tts-chunk-queue.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const CONFIG_PATH = resolve(__dirname, "config.yaml");
+const CONFIG_PATH = resolve(__dirname, "../config.yaml");
 
 interface Config {
   fastapi: {
