@@ -82,9 +82,6 @@ export class TtsChunkQueue {
     }
     this.cancelTimeout();
     this.timeoutHandle = setTimeout(() => {
-      console.warn(
-        `TtsChunkQueue: sequence ${this.expectedSequence} timed out after ${TIMEOUT_MS}ms, skipping`,
-      );
       this.expectedSequence++;
       this.drainConsecutive();
       this.scheduleTimeout();
@@ -101,9 +98,6 @@ export class TtsChunkQueue {
   private forceProcessOldest(): void {
     const minSeq = Math.min(...this.buffer.keys());
     if (minSeq > this.expectedSequence) {
-      console.warn(
-        `TtsChunkQueue: buffer overflow, skipping sequences ${this.expectedSequence}–${minSeq - 1}`,
-      );
       this.expectedSequence = minSeq;
     }
     this.drainConsecutive();

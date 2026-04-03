@@ -180,18 +180,14 @@ describe("TtsChunkQueue", () => {
 
   describe("timeout handling", () => {
     it("skips missing sequence and processes buffered chunks after 3s", async () => {
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       queue.enqueue(makeChunk(1)); // seq 0 is missing
       expect(processed).toHaveLength(0);
       vi.advanceTimersByTime(3000);
       await queue.drain();
       expect(processed.map((c) => c.sequence)).toEqual([1]);
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("0"));
-      warnSpy.mockRestore();
     });
 
     it("chains timeouts when multiple sequences are missing", async () => {
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       queue.enqueue(makeChunk(2)); // seq 0 and 1 missing
       vi.advanceTimersByTime(3000); // seq 0 times out
       await queue.drain();
@@ -199,8 +195,6 @@ describe("TtsChunkQueue", () => {
       vi.advanceTimersByTime(3000); // seq 1 times out
       await queue.drain();
       expect(processed.map((c) => c.sequence)).toEqual([2]);
-      expect(warnSpy).toHaveBeenCalledTimes(2);
-      warnSpy.mockRestore();
     });
 
     it("does not fire timeout when buffer is empty after drain", async () => {
