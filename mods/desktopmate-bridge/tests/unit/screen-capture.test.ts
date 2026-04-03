@@ -26,7 +26,7 @@ vi.mock("node-screenshots", () => ({
   },
 }));
 
-import { listWindows, captureScreen, captureWindow } from "../screen-capture.js";
+import { listWindows, captureScreen, captureWindow } from "../../screen-capture.js";
 
 describe("listWindows", () => {
   it("returns id and title for each window", async () => {

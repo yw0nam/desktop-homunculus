@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { TtsChunkQueue, type TtsChunk } from "./tts-chunk-queue";
+import { TtsChunkQueue, type TtsChunk } from "../../tts-chunk-queue";
 
 function makeChunk(sequence: number, audio: boolean = false): TtsChunk {
   return {
