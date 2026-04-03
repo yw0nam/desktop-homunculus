@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.8] - 2026-04-03
+
+### Fixed
+
+- **desktopmate-bridge**: Remove `console.warn` calls from `tts-chunk-queue.ts` to comply with GP-13 (no console logging in production code)
+
+### Changed
+
+- **desktopmate-bridge**: Refactor `ControlBar.test.tsx` — extract `mockStore()` helper to eliminate repeated `useStore` mock boilerplate (445 → 375 lines, GP-13-size compliant)
+
 ## [0.1.0-alpha.7] - 2026-04-01
 
 ### Fixed
