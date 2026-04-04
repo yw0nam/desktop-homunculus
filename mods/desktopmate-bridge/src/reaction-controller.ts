@@ -43,12 +43,14 @@ export class ReactionController {
       clearInterval(this.windowInterval);
       this.windowInterval = null;
     }
+    this.lastWindowTitle = null;
   }
 
   async onPrimaryClick(): Promise<void> {
     this.scheduleIdleTimer();
     if (this.ttsQueue.isBusy()) return;
     const phrase = pickRandom(this.config.click_phrases);
+    if (phrase === null) return;
     await this.speak(phrase);
   }
 
@@ -68,6 +70,7 @@ export class ReactionController {
     this.scheduleIdleTimer();
     if (this.ttsQueue.isBusy()) return;
     const phrase = pickRandom(this.config.idle_phrases);
+    if (phrase === null) return;
     await this.speak(phrase);
   }
 
@@ -100,6 +103,7 @@ export class ReactionController {
     if (this.ttsQueue.isBusy()) return;
 
     const template = pickRandom(this.config.window_phrases);
+    if (template === null) return;
     const phrase = template.replace("{title}", title);
     await this.speak(phrase);
   }
@@ -121,7 +125,7 @@ export class ReactionController {
   }
 }
 
-function pickRandom<T>(items: T[]): T {
-  if (items.length === 0) throw new Error("pickRandom called with empty array");
+function pickRandom<T>(items: T[]): T | null {
+  if (items.length === 0) return null;
   return items[Math.floor(Math.random() * items.length)]!;
 }
