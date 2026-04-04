@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@hmcs/sdk": "workspace:*",
+    "active-win": "^8.2.0",
     "js-yaml": "^4.1.1",
     "node-screenshots": "^0.2.8",
     "zod": "^3.24.0"
