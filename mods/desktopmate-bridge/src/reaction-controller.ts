@@ -46,7 +46,7 @@ export class ReactionController {
   }
 
   async onPrimaryClick(): Promise<void> {
-    this.resetIdleTimer();
+    this.scheduleIdleTimer();
     if (this.ttsQueue.isBusy()) return;
     const phrase = pickRandom(this.config.click_phrases);
     await this.speak(phrase);
@@ -55,10 +55,6 @@ export class ReactionController {
   private scheduleIdleTimer(): void {
     this.cancelIdleTimer();
     this.idleTimer = setTimeout(() => this.handleIdle(), this.config.idle_timeout_ms);
-  }
-
-  private resetIdleTimer(): void {
-    this.scheduleIdleTimer();
   }
 
   private cancelIdleTimer(): void {
@@ -76,6 +72,9 @@ export class ReactionController {
   }
 
   private startWindowWatcher(): void {
+    if (this.windowInterval !== null) {
+      clearInterval(this.windowInterval);
+    }
     this.windowInterval = setInterval(
       () => this.checkActiveWindow().catch(() => {}),
       this.config.window_check_interval_ms,

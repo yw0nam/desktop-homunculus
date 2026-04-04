@@ -67,14 +67,11 @@ export class TtsChunkQueue {
     this.activeCount++;
     this.processingChain = this.processingChain
       .then(() => {
-        if (this.generation !== capturedGeneration) {
-          this.activeCount--;
-          return;
-        }
+        if (this.generation !== capturedGeneration) return;
         return this.processor(chunk);
       })
-      .then(() => { this.activeCount--; })
-      .catch((err) => { this.activeCount--; console.error(err); });
+      .finally(() => { this.activeCount--; })
+      .catch((err) => { console.error(err); });
   }
 
   private drainConsecutive(): void {
