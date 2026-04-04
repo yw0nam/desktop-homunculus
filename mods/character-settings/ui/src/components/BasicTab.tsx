@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 const POS_MIN = -10;
 const POS_MAX = 10;
 const POS_STEP = 0.1;
@@ -9,6 +11,21 @@ interface PositionRowProps {
 }
 
 function PositionRow({ label, value, onChange }: PositionRowProps) {
+  const [inputStr, setInputStr] = useState(String(value));
+
+  useEffect(() => {
+    setInputStr(String(value));
+  }, [value]);
+
+  function commitValue() {
+    const v = parseFloat(inputStr);
+    if (!isNaN(v)) {
+      onChange(v);
+    } else {
+      setInputStr(String(value));
+    }
+  }
+
   return (
     <label className="settings-label">
       {label}
@@ -28,11 +45,10 @@ function PositionRow({ label, value, onChange }: PositionRowProps) {
           min={POS_MIN}
           max={POS_MAX}
           step={POS_STEP}
-          value={value}
-          onChange={(e) => {
-            const v = parseFloat(e.target.value);
-            if (!isNaN(v)) onChange(v);
-          }}
+          value={inputStr}
+          onChange={(e) => setInputStr(e.target.value)}
+          onBlur={commitValue}
+          onKeyDown={(e) => { if (e.key === "Enter") commitValue(); }}
         />
       </div>
     </label>

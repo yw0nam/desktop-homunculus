@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.10] - 2026-04-05
+
+### Fixed
+
+- **desktopmate-bridge**: `pickRandom()` no longer throws on empty phrase arrays — returns `null` and callers skip the reaction silently, so a misconfigured `ReactionConfig` with empty arrays no longer crashes the controller.
+- **desktopmate-bridge**: `ReactionController.stop()` now resets `lastWindowTitle` to `null` — prevents stale window state from suppressing the first window-change reaction after the controller is restarted.
+- **desktopmate-bridge**: Test global `fetch` leak fixed — `global.fetch = mockFetch` at module scope replaced with `vi.stubGlobal` / `vi.unstubAllGlobals` per-test lifecycle to prevent cross-test state pollution.
+- **character-settings**: `PositionRow` number input now uses a local string state so users can type negative values (e.g. `-3`) without the field resetting on intermediate input like `-`.
+- **character-settings**: `vitest.config.ts` now defines `__dirname` via `fileURLToPath(import.meta.url)` for ESM compatibility — fixes test runner startup failure in ESM environments.
+
 ## [0.1.0-alpha.9] - 2026-04-04
 
 ### Added

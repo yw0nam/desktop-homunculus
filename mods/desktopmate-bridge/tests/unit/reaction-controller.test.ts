@@ -16,7 +16,6 @@ const mockVrm = {
 } as unknown as import("@hmcs/sdk").Vrm;
 
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
 
 // --- helpers ---
 
@@ -75,7 +74,8 @@ describe("ReactionController — click trigger", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    mockFetch.mockClear();
+    mockFetch.mockReset();
+    vi.stubGlobal("fetch", mockFetch);
     mockSpeakWithTimeline.mockClear();
     queue = makeTtsQueue();
     ctrl = new ReactionController(mockVrm, queue, "http://localhost:5500", makeConfig());
@@ -84,6 +84,7 @@ describe("ReactionController — click trigger", () => {
   afterEach(() => {
     ctrl.stop();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("calls TTS endpoint with a click phrase on primary click", async () => {
@@ -129,7 +130,8 @@ describe("ReactionController — idle trigger", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    mockFetch.mockClear();
+    mockFetch.mockReset();
+    vi.stubGlobal("fetch", mockFetch);
     mockSpeakWithTimeline.mockClear();
     queue = makeTtsQueue();
     ctrl = new ReactionController(mockVrm, queue, "http://localhost:5500", makeConfig({ idle_timeout_ms: 500 }));
@@ -139,6 +141,7 @@ describe("ReactionController — idle trigger", () => {
   afterEach(() => {
     ctrl.stop();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("fires idle reaction after idle_timeout_ms", async () => {
@@ -181,7 +184,8 @@ describe("ReactionController — window/context trigger", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    mockFetch.mockClear();
+    mockFetch.mockReset();
+    vi.stubGlobal("fetch", mockFetch);
     mockSpeakWithTimeline.mockClear();
     mockActiveWin.mockResolvedValue({ title: "VSCode", owner: { name: "Code" } });
     queue = makeTtsQueue();
@@ -192,6 +196,7 @@ describe("ReactionController — window/context trigger", () => {
   afterEach(() => {
     ctrl.stop();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("fires window reaction when focused window title changes", async () => {

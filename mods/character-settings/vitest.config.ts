@@ -1,6 +1,9 @@
 import { defineConfig } from "vitest/config";
-import path from "path";
+import path, { dirname } from "path";
+import { fileURLToPath } from "url";
 import { existsSync } from "fs";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Resolve @hmcs/sdk to the nearest built dist/index.js.
 // - In the main repo: packages/sdk is 2 levels up (mods/character-settings → repo root)
