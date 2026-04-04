@@ -7,7 +7,8 @@
   "author": "notelm",
   "scripts": {
     "build": "pnpm exec vite build ui",
-    "dev": "pnpm exec vite dev ui"
+    "dev": "pnpm exec vite dev ui",
+    "test": "vitest run"
   },
   "homunculus": {
     "menus": [
@@ -37,13 +38,16 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react-swc": "^4.2.3",
+    "happy-dom": "^17.4.7",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3",
     "vite": "^6.4.1",
-    "vite-plugin-singlefile": "^2.3.0"
+    "vite-plugin-singlefile": "^2.3.0",
+    "vitest": "^3.0.0"
   }
 }

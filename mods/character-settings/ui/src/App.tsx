@@ -11,6 +11,10 @@ export function App() {
     setTab,
     scale,
     setScale,
+    posX,
+    setPosX,
+    posY,
+    setPosY,
     profile,
     setProfile,
     personality,
@@ -70,7 +74,15 @@ export function App() {
       {/* Content */}
       <div className={`settings-content${tab === "basic" ? " settings-content--visible" : ""}`}>
         {tab === "basic" && (
-          <BasicTab name={name} scale={scale} onScaleChange={setScale} />
+          <BasicTab
+            name={name}
+            scale={scale}
+            onScaleChange={setScale}
+            posX={posX}
+            posY={posY}
+            onPosXChange={setPosX}
+            onPosYChange={setPosY}
+          />
         )}
         {tab === "persona" && (
           <PersonaTab
