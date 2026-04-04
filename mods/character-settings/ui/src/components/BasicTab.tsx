@@ -1,3 +1,44 @@
+const POS_MIN = -10;
+const POS_MAX = 10;
+const POS_STEP = 0.1;
+
+interface PositionRowProps {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}
+
+function PositionRow({ label, value, onChange }: PositionRowProps) {
+  return (
+    <label className="settings-label">
+      {label}
+      <div className="settings-slider-row">
+        <input
+          type="range"
+          className="settings-slider"
+          min={POS_MIN}
+          max={POS_MAX}
+          step={POS_STEP}
+          value={value}
+          onChange={(e) => onChange(parseFloat(e.target.value))}
+        />
+        <input
+          type="number"
+          className="settings-number-input"
+          min={POS_MIN}
+          max={POS_MAX}
+          step={POS_STEP}
+          value={value}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            if (!isNaN(v)) onChange(v);
+          }}
+        />
+      </div>
+    </label>
+  );
+}
+
 interface BasicTabProps {
   name: string;
   scale: number;
@@ -45,59 +86,8 @@ export function BasicTab({
         </div>
       </label>
 
-      <label className="settings-label">
-        Position X
-        <div className="settings-slider-row">
-          <input
-            type="range"
-            className="settings-slider"
-            min={-10}
-            max={10}
-            step={0.1}
-            value={posX}
-            onChange={(e) => onPosXChange(parseFloat(e.target.value))}
-          />
-          <input
-            type="number"
-            className="settings-number-input"
-            min={-10}
-            max={10}
-            step={0.1}
-            value={posX}
-            onChange={(e) => {
-              const v = parseFloat(e.target.value);
-              if (!isNaN(v)) onPosXChange(v);
-            }}
-          />
-        </div>
-      </label>
-
-      <label className="settings-label">
-        Position Y
-        <div className="settings-slider-row">
-          <input
-            type="range"
-            className="settings-slider"
-            min={-10}
-            max={10}
-            step={0.1}
-            value={posY}
-            onChange={(e) => onPosYChange(parseFloat(e.target.value))}
-          />
-          <input
-            type="number"
-            className="settings-number-input"
-            min={-10}
-            max={10}
-            step={0.1}
-            value={posY}
-            onChange={(e) => {
-              const v = parseFloat(e.target.value);
-              if (!isNaN(v)) onPosYChange(v);
-            }}
-          />
-        </div>
-      </label>
+      <PositionRow label="Position X" value={posX} onChange={onPosXChange} />
+      <PositionRow label="Position Y" value={posY} onChange={onPosYChange} />
     </div>
   );
 }
