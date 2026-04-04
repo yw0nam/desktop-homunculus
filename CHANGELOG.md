@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.9] - 2026-04-04
+
+### Added
+
+- **desktopmate-bridge**: `ReactionController` — mascot now reacts to primary click (speaks a random click phrase), idle timeout (speaks after 5 minutes of inactivity), and active window focus change (speaks a window-context phrase with the app title). All reactions are skipped while chat TTS is playing.
+- **desktopmate-bridge**: `TtsChunkQueue.isBusy()` — synchronous check for whether a TTS chunk is currently being processed or buffered.
+- **desktopmate-bridge**: `reactions` config section in `config.yaml` — configurable phrases for click, idle, and window events plus `idle_timeout_ms` / `window_check_interval_ms` intervals.
+- **desktopmate-bridge**: `active-win` npm dependency for active window title polling.
+
+### Fixed
+
+- **desktopmate-bridge**: Fixed `activeCount` double-decrement in `TtsChunkQueue.scheduleProcessor` on generation mismatch — use `Promise.finally()` to guarantee single decrement regardless of code path.
+- **desktopmate-bridge**: Prevent interval leak when `ReactionController.start()` is called multiple times — `startWindowWatcher()` now clears any existing interval before creating a new one.
+
 ## [0.1.0-alpha.8] - 2026-04-03
 
 ### Fixed

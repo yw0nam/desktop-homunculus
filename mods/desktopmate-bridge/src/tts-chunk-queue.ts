@@ -18,9 +18,15 @@ export class TtsChunkQueue {
   private readonly processor: ChunkProcessor;
   private processingChain: Promise<void> = Promise.resolve();
   private generation = 0;
+  private activeCount = 0;
 
   constructor(processor: ChunkProcessor) {
     this.processor = processor;
+  }
+
+  /** Returns true if a chunk is currently being processed or the buffer has pending chunks. */
+  isBusy(): boolean {
+    return this.activeCount > 0 || this.buffer.size > 0;
   }
 
   enqueue(chunk: TtsChunk): void {
@@ -58,12 +64,14 @@ export class TtsChunkQueue {
 
   private scheduleProcessor(chunk: TtsChunk): void {
     const capturedGeneration = this.generation;
+    this.activeCount++;
     this.processingChain = this.processingChain
       .then(() => {
         if (this.generation !== capturedGeneration) return;
         return this.processor(chunk);
       })
-      .catch(console.error);
+      .finally(() => { this.activeCount--; })
+      .catch((err) => { console.error(err); });
   }
 
   private drainConsecutive(): void {

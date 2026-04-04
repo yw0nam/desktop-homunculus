@@ -8,3 +8,20 @@ homunculus:
   api_url: "http://localhost:3100"
 tts:
   reference_id: ""
+reactions:
+  click_phrases:
+    - "やだ！びっくりした！"
+    - "なぁに？"
+    - "呼んだ？"
+    - "どうしたの？"
+  idle_phrases:
+    - "退屈だなぁ..."
+    - "ねぇ、遊ぼうよ！"
+    - "もしかして忘れてる？"
+    - "ずっと待ってたんだよ？"
+  window_phrases:
+    - "{title}を使ってるんだ！"
+    - "あっ、{title}！"
+    - "{title}か～、頑張ってね！"
+  idle_timeout_ms: 300000
+  window_check_interval_ms: 10000
