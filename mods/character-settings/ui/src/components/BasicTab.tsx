@@ -1,10 +1,63 @@
+const POS_MIN = -10;
+const POS_MAX = 10;
+const POS_STEP = 0.1;
+
+interface PositionRowProps {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}
+
+function PositionRow({ label, value, onChange }: PositionRowProps) {
+  return (
+    <label className="settings-label">
+      {label}
+      <div className="settings-slider-row">
+        <input
+          type="range"
+          className="settings-slider"
+          min={POS_MIN}
+          max={POS_MAX}
+          step={POS_STEP}
+          value={value}
+          onChange={(e) => onChange(parseFloat(e.target.value))}
+        />
+        <input
+          type="number"
+          className="settings-number-input"
+          min={POS_MIN}
+          max={POS_MAX}
+          step={POS_STEP}
+          value={value}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            if (!isNaN(v)) onChange(v);
+          }}
+        />
+      </div>
+    </label>
+  );
+}
+
 interface BasicTabProps {
   name: string;
   scale: number;
   onScaleChange: (scale: number) => void;
+  posX: number;
+  posY: number;
+  onPosXChange: (x: number) => void;
+  onPosYChange: (y: number) => void;
 }
 
-export function BasicTab({ name, scale, onScaleChange }: BasicTabProps) {
+export function BasicTab({
+  name,
+  scale,
+  onScaleChange,
+  posX,
+  posY,
+  onPosXChange,
+  onPosYChange,
+}: BasicTabProps) {
   return (
     <div className="settings-section">
       <label className="settings-label">
@@ -32,6 +85,9 @@ export function BasicTab({ name, scale, onScaleChange }: BasicTabProps) {
           <span className="settings-slider-value">{scale.toFixed(2)}</span>
         </div>
       </label>
+
+      <PositionRow label="Position X" value={posX} onChange={onPosXChange} />
+      <PositionRow label="Position Y" value={posY} onChange={onPosYChange} />
     </div>
   );
 }

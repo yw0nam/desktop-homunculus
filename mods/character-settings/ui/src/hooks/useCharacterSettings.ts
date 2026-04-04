@@ -9,6 +9,8 @@ export function useCharacterSettings() {
   const [tab, setTab] = useState<Tab>("basic");
   const [name, setName] = useState("");
   const [scale, setScale] = useState(1);
+  const [posX, setPosX] = useState(0);
+  const [posY, setPosY] = useState(0);
   const [profile, setProfile] = useState("");
   const [personality, setPersonality] = useState("");
   const [ocean, setOcean] = useState<Ocean>({});
@@ -36,6 +38,8 @@ export function useCharacterSettings() {
 
       setName(vrmName);
       setScale(transform.scale[0]);
+      setPosX(transform.translation[0]);
+      setPosY(transform.translation[1]);
       setProfile(persona.profile);
       setPersonality(persona.personality ?? "");
       setOcean(persona.ocean);
@@ -65,7 +69,7 @@ export function useCharacterSettings() {
       const currentTransform = await entities.transform(entity);
       await entities.setTransform(entity, {
         scale: [scale, scale, scale],
-        translation: currentTransform.translation,
+        translation: [posX, posY, currentTransform.translation[2]],
         rotation: currentTransform.rotation,
       });
       setSaved(true);
@@ -75,7 +79,7 @@ export function useCharacterSettings() {
     } finally {
       setSaving(false);
     }
-  }, [vrm, entity, profile, personality, ocean, scale, saving]);
+  }, [vrm, entity, profile, personality, ocean, scale, posX, posY, saving]);
 
   return {
     loading,
@@ -84,6 +88,10 @@ export function useCharacterSettings() {
     setTab,
     scale,
     setScale,
+    posX,
+    setPosX,
+    posY,
+    setPosY,
     profile,
     setProfile,
     personality,
