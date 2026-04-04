@@ -42,6 +42,17 @@ import { ControlBar } from "./ControlBar";
 import { useStore } from "../store";
 import { sendChatMessage, captureScreen, captureWindow, reconnect } from "../api";
 
+beforeEach(() => {
+  vi.mocked(useStore).mockReturnValue({
+    isTyping: false,
+    connectionStatus: "disconnected",
+    activeSessionId: null,
+    addUserMessage: vi.fn(),
+    captureMode: "fullscreen",
+    captureSelectedWindowId: null,
+  });
+});
+
 const noop = () => {};
 
 function mockStore(overrides: Partial<ReturnType<typeof useStore>> = {}) {
