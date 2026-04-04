@@ -64,7 +64,10 @@ export function BasicTab({
             max={10}
             step={0.1}
             value={posX}
-            onChange={(e) => onPosXChange(parseFloat(e.target.value))}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              if (!isNaN(v)) onPosXChange(v);
+            }}
           />
         </div>
       </label>
@@ -88,7 +91,10 @@ export function BasicTab({
             max={10}
             step={0.1}
             value={posY}
-            onChange={(e) => onPosYChange(parseFloat(e.target.value))}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              if (!isNaN(v)) onPosYChange(v);
+            }}
           />
         </div>
       </label>

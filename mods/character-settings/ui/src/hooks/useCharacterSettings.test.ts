@@ -84,14 +84,14 @@ describe("useCharacterSettings — posX/posY", () => {
   it("updates posX when setPosX is called", async () => {
     const { result } = renderHook(() => useCharacterSettings());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    act(() => result.current.setPosX(5.0));
+    await act(async () => { result.current.setPosX(5.0); });
     expect(result.current.posX).toBe(5.0);
   });
 
   it("updates posY when setPosY is called", async () => {
     const { result } = renderHook(() => useCharacterSettings());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    act(() => result.current.setPosY(3.5));
+    await act(async () => { result.current.setPosY(3.5); });
     expect(result.current.posY).toBe(3.5);
   });
 });
@@ -101,8 +101,8 @@ describe("useCharacterSettings — handleSave preserves translation[2]", () => {
     const { result } = renderHook(() => useCharacterSettings());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    act(() => result.current.setPosX(1.0));
-    act(() => result.current.setPosY(2.0));
+    await act(async () => { result.current.setPosX(1.0); });
+    await act(async () => { result.current.setPosY(2.0); });
 
     mockGetTransform.mockResolvedValueOnce({
       ...BASE_TRANSFORM,
