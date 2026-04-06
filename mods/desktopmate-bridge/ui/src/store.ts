@@ -106,10 +106,13 @@ export const useStore = create<StoreState>((set) => ({
   setCaptureSelectedWindowId: (captureSelectedWindowId) => set({ captureSelectedWindowId }),
   setCapturePreview: (capturePreview) => set({ capturePreview }),
   resetStreaming: () =>
-    set((s) => ({
-      isTyping: false,
-      messages: s.messages.map((m) =>
-        m.streaming ? { ...m, streaming: false } : m,
-      ),
-    })),
+    set((s) => {
+      if (!s.isTyping && !s.messages.some((m) => m.streaming)) return s;
+      return {
+        isTyping: false,
+        messages: s.messages.map((m) =>
+          m.streaming ? { ...m, streaming: false } : m,
+        ),
+      };
+    }),
 }));
