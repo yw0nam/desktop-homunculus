@@ -327,6 +327,34 @@ describe("ControlBar — Send button disabled when disconnected", () => {
     const btn = getByText("Send") as HTMLButtonElement;
     expect(btn.disabled).toBe(false);
   });
+
+  it("Enter key does not call sendChatMessage when disconnected", async () => {
+    vi.mocked(sendChatMessage).mockClear();
+    const addUserMessage = vi.fn();
+    mockStore({ connectionStatus: "disconnected", addUserMessage });
+    const { getByPlaceholderText } = renderControlBar();
+    const input = getByPlaceholderText("Enter message...");
+    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    // Give async handleSend a chance to execute (it shouldn't)
+    await new Promise((r) => setTimeout(r, 50));
+    expect(sendChatMessage).not.toHaveBeenCalled();
+    expect(addUserMessage).not.toHaveBeenCalled();
+  });
+
+  it("Enter key sends message when connected", async () => {
+    vi.mocked(sendChatMessage).mockClear();
+    const addUserMessage = vi.fn();
+    mockStore({ connectionStatus: "connected", addUserMessage });
+    const { getByPlaceholderText } = renderControlBar();
+    const input = getByPlaceholderText("Enter message...");
+    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await vi.waitFor(() => {
+      expect(addUserMessage).toHaveBeenCalledWith("hello");
+      expect(sendChatMessage).toHaveBeenCalled();
+    });
+  });
 });
 
 describe("ControlBar — DH-BUG-13: Reconnect button", () => {

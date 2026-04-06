@@ -103,7 +103,7 @@ export function ControlBar({
   }
 
   async function handleSend() {
-    if (!input.trim() || isTyping) return;
+    if (!input.trim() || isTyping || connectionStatus !== "connected") return;
     const content = input.trim();
     setInput("");
     addUserMessage(content);
