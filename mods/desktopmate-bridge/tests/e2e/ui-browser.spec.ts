@@ -107,7 +107,7 @@ test("TC-UI-05: invalid WS URL save then reconnect shows ✖ Disconnected", asyn
   await panel.getByRole("button", { name: "Save" }).click();
   await expect(panel.getByText("✔ Saved")).toBeVisible({ timeout: 3000 });
 
-  // Emit connected status first so reconnect button is hidden
+  // Emit disconnected status so reconnect button is visible
   await page.evaluate(() => {
     window.__signalBus__.emit("dm-connection-status", { status: "disconnected" });
   });
