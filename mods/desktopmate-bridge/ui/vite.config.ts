@@ -8,11 +8,11 @@ import { dirname, resolve } from "node:path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const testModeAliases = process.env["VITE_TEST_MODE"]
-  ? {
-      "@hmcs/sdk": resolve(__dirname, "./test/mock-sdk/index.ts"),
-      "@hmcs/sdk/rpc": resolve(__dirname, "./test/mock-sdk/rpc.ts"),
-    }
-  : {};
+  ? [
+      { find: "@hmcs/sdk/rpc", replacement: resolve(__dirname, "./test/mock-sdk/rpc.ts") },
+      { find: "@hmcs/sdk", replacement: resolve(__dirname, "./test/mock-sdk/index.ts") },
+    ]
+  : [];
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), viteSingleFile()],
