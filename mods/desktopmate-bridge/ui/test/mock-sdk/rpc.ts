@@ -55,11 +55,21 @@ async function handleUpdateConfig(body: unknown): Promise<unknown> {
   return {};
 }
 
+function isInvalidWsUrl(url: string): boolean {
+  return url.includes("invalid-host") || url.includes(":9999");
+}
+
 async function handleReconnect(): Promise<unknown> {
   window.__reconnectCallCount__ += 1;
   const delay = window.__reconnectDelay__ ?? 0;
   if (delay > 0) {
     await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+  const wsUrl = window.__testConfig__?.fastapi_ws_url ?? "";
+  if (isInvalidWsUrl(wsUrl)) {
+    setTimeout(() => {
+      window.__signalBus__?.emit("dm-connection-status", { status: "disconnected" });
+    }, 100);
   }
   return {};
 }

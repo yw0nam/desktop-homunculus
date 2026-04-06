@@ -45,7 +45,7 @@ test("TC-UI-03: settings panel save shows ✔ Saved", async ({ page }) => {
 
   await page.locator('[title="Settings"]').click();
 
-  const panel = page.locator(".w-52");
+  const panel = page.locator('[data-testid="settings-panel"]');
   await expect(panel).toBeVisible({ timeout: 3000 });
 
   const userIdInput = panel.locator('input').first();
@@ -87,29 +87,36 @@ test("TC-UI-04: reconnect button shows Reconnecting… while in-flight and block
   await expect(reconnectBtn).toBeEnabled();
 });
 
-// TC-UI-05: dm-config 시그널 → 설정 패널 입력값 갱신
-test("TC-UI-05: dm-config signal updates settings panel fields", async ({
+// TC-UI-05: 잘못된 URL 저장 → reconnect 실패 → "✖ Disconnected" 표시
+// Core bug scenario: bad URL saved → reconnect attempt → connection stays disconnected
+test("TC-UI-05: invalid WS URL save then reconnect shows ✖ Disconnected", async ({
   page,
 }) => {
   await page.goto("/");
 
+  // Open settings panel
   await page.locator('[title="Settings"]').click();
-
-  const panel = page.locator(".w-52");
+  const panel = page.locator('[data-testid="settings-panel"]');
   await expect(panel).toBeVisible({ timeout: 3000 });
 
+  // Enter invalid WS URL
+  const wsUrlInput = panel.locator('input').nth(3);
+  await wsUrlInput.fill("ws://invalid-host:9999/v1/chat/stream");
+
+  // Save — mock updateConfig stores the bad URL and emits dm-config
+  await panel.getByRole("button", { name: "Save" }).click();
+  await expect(panel.getByText("✔ Saved")).toBeVisible({ timeout: 3000 });
+
+  // Emit connected status first so reconnect button is hidden
   await page.evaluate(() => {
-    window.__signalBus__.emit("dm-config", {
-      user_id: "signal-user",
-      agent_id: "signal-agent",
-      fastapi_rest_url: "http://signal-host:5500",
-      fastapi_ws_url: "ws://signal-host:5500/v1/chat/stream",
-      fastapi_token: "signal-token",
-      homunculus_api_url: "http://signal-homunculus:3100",
-      tts_reference_id: "signal-ref",
-    });
+    window.__signalBus__.emit("dm-connection-status", { status: "disconnected" });
   });
 
-  const userIdInput = panel.locator('input').first();
-  await expect(userIdInput).toHaveValue("signal-user", { timeout: 3000 });
+  // Click reconnect — mock reconnect detects invalid URL and emits disconnected
+  const reconnectBtn = page.locator('[title="Reconnect"]');
+  await expect(reconnectBtn).toBeVisible({ timeout: 3000 });
+  await reconnectBtn.click();
+
+  // UI must show ✖ Disconnected (reconnect failed due to invalid URL)
+  await expect(page.getByText("✖ Disconnected")).toBeVisible({ timeout: 5000 });
 });

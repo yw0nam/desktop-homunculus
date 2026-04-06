@@ -36,7 +36,7 @@ export function SettingsPanel() {
   }[status];
 
   return (
-    <div className="w-52 flex flex-col bg-black/30 backdrop-blur-sm border-l border-white/10 p-3 gap-2 overflow-y-auto">
+    <div data-testid="settings-panel" className="w-52 flex flex-col bg-black/30 backdrop-blur-sm border-l border-white/10 p-3 gap-2 overflow-y-auto">
       <div className="text-white/80 text-xs font-semibold">⚙ Settings</div>
       <SettingInput label="user_id" value={form.user_id} onChange={(v) => handleChange("user_id", v)} />
       <SettingInput label="agent_id" value={form.agent_id} onChange={(v) => handleChange("agent_id", v)} />
