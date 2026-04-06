@@ -52,7 +52,7 @@ export function collectMessages(
     ws.addEventListener("error", () => {
       clearTimeout(timer);
       reject(new Error(`WebSocket error while collecting messages`));
-    });
+    }, { once: true });
   });
 }
 

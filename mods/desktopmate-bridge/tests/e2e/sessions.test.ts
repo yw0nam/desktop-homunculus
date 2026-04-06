@@ -8,12 +8,7 @@
  *   pnpm test:e2e
  */
 import { describe, it, expect } from "vitest";
-
-const FASTAPI_URL = process.env.FASTAPI_URL ?? "http://localhost:5500";
-const WS_URL = FASTAPI_URL.replace(/^http/, "ws") + "/v1/chat/stream";
-const TOKEN = process.env.FASTAPI_TOKEN ?? "test_token";
-const USER_ID = process.env.FASTAPI_USER_ID ?? "default";
-const AGENT_ID = process.env.FASTAPI_AGENT_ID ?? "yuri";
+import { FASTAPI_URL, USER_ID, AGENT_ID, sendChatTurn } from "./helpers/ws.js";
 
 // ── REST helpers ──────────────────────────────────────────────────────────────
 
@@ -36,85 +31,6 @@ async function getChatHistory(sessionId: string) {
     session_id: string;
     messages: { role: string; content: unknown }[];
   }>;
-}
-
-// ── WebSocket helpers ─────────────────────────────────────────────────────────
-
-type WsMsg = Record<string, unknown> & { type: string };
-
-function collectUntil(
-  ws: WebSocket,
-  predicate: (msgs: WsMsg[]) => boolean,
-  timeoutMs: number,
-): Promise<WsMsg[]> {
-  return new Promise((resolve, reject) => {
-    const msgs: WsMsg[] = [];
-    const timer = setTimeout(
-      () => reject(new Error(`Timeout. Collected: ${JSON.stringify(msgs)}`)),
-      timeoutMs,
-    );
-    const onMsg = (e: MessageEvent) => {
-      const msg = JSON.parse(e.data as string) as WsMsg;
-      if (msg.type === "ping" && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "pong" }));
-      }
-      msgs.push(msg);
-      if (predicate(msgs)) {
-        clearTimeout(timer);
-        ws.removeEventListener("message", onMsg);
-        resolve(msgs);
-      }
-    };
-    ws.addEventListener("message", onMsg);
-  });
-}
-
-async function sendChatTurn(
-  content: string,
-  sessionId?: string,
-): Promise<{ sessionId: string; responseContent: string }> {
-  const ws = new WebSocket(WS_URL);
-  await new Promise<void>((res, rej) => {
-    ws.addEventListener("open", () => res());
-    ws.addEventListener("error", () => rej(new Error("WS open failed")));
-  });
-
-  // authorize
-  const authDone = collectUntil(
-    ws,
-    (msgs) => msgs.some((m) => m.type === "authorize_success"),
-    5000,
-  );
-  ws.send(JSON.stringify({ type: "authorize", token: TOKEN }));
-  await authDone;
-
-  // chat
-  const chatDone = collectUntil(
-    ws,
-    (msgs) => msgs.some((m) => m.type === "stream_end"),
-    60_000,
-  );
-  ws.send(
-    JSON.stringify({
-      type: "chat_message",
-      content,
-      user_id: USER_ID,
-      agent_id: AGENT_ID,
-      tts_enabled: false,
-      ...(sessionId ? { session_id: sessionId } : {}),
-    }),
-  );
-  const msgs = await chatDone;
-  ws.close();
-
-  const streamEnd = msgs.find((m) => m.type === "stream_end") as {
-    session_id: string;
-    content: string;
-  } & WsMsg;
-  return {
-    sessionId: streamEnd.session_id,
-    responseContent: streamEnd.content,
-  };
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
