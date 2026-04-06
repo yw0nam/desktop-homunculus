@@ -25,12 +25,6 @@ npx vitest run   # from mods/desktopmate-bridge/
 # Start Vite dev server (from mods/desktopmate-bridge/ui/)
 pnpm dev
 # Dev server runs at http://localhost:5173
-```
-
-```bash
-# Start Vite dev server (from mods/desktopmate-bridge/ui/)
-pnpm dev
-# Dev server runs at http://localhost:5173
 
 # In agent-browser:
 # $B goto http://localhost:5173
@@ -47,11 +41,13 @@ For static HTML mockups (design-agent output), open directly:
 Always use Read tool on the output PNG to display the screenshot in the conversation.
 
 ### Step 3 — Backend E2E Integration
-mock-homunculus로 실제 WS 통신 검증:
+실제 FastAPI 백엔드 대상 Vitest E2E 테스트:
 ```bash
 # from mods/desktopmate-bridge/
-npx tsx scripts/mock-homunculus.ts   # mock backend 기동
-npx vitest run --config vitest.e2e.config.ts   # E2E 테스트
+FASTAPI_URL=http://localhost:5500 pnpm test:e2e   # TC-LC, TC-CW (33 tests + 1 skipped)
+
+# Playwright UI E2E (mock-sdk 사용, 백엔드 불필요):
+cd ui && npx playwright test   # TC-UI-01~05 (5 tests)
 ```
 
 ## Directory Structure
@@ -60,6 +56,7 @@ npx vitest run --config vitest.e2e.config.ts   # E2E 테스트
 desktopmate-bridge/
 ├── src/                    # Service source files
 │   ├── service.ts          # Entry point (homunculus.service)
+│   ├── config-io.ts        # YAML config read/write: applyConfigToDisk + loadConfigFrom
 │   ├── screen-capture.ts   # Screen/window capture via node-screenshots
 │   └── tts-chunk-queue.ts  # TTS chunk ordering & buffering
 ├── commands/
@@ -68,17 +65,22 @@ desktopmate-bridge/
 │   └── mock-homunculus.ts  # Mock HTTP backend for local E2E testing (port 3100)
 ├── tests/
 │   ├── unit/               # Unit tests (no external deps)
-│   └── e2e/                # E2E tests (require real FastAPI backend on :5500)
+│   └── e2e/                # E2E tests (require real FastAPI backend)
+│       ├── helpers/ws.ts   # Shared WS helpers (openWs, collectMessages, authorizedWs, sendChatTurn)
+│       ├── connection-lifecycle.test.ts  # TC-LC-01~08
+│       ├── config-write.test.ts          # TC-CW-01~07
+│       └── ui-browser.spec.ts            # TC-UI-01~05 (Playwright)
 ├── ui/                     # React chat UI (Vite app)
-├── config.yaml             # Runtime config (fastapi, homunculus, tts)
+│   └── test/mock-sdk/      # VITE_TEST_MODE mocks for Playwright tests
+├── config.yaml             # Runtime config (fastapi, homunculus, tts, reactions)
 ├── vitest.config.ts        # Unit test config (includes tests/unit/, ui/src/)
 └── vitest.e2e.config.ts    # E2E test config (includes tests/e2e/)
 ```
 
 ## Architecture
 
-Config flow: `config.yaml` → `loadConfig()` → `broadcastConfig()` → `dm-config` signal → UI store `settings`.
-Write-back: `writeFileSync(CONFIG_PATH, yaml.dump(config))` in `src/service.ts`.
+Config flow: `config.yaml` → `loadConfigFrom(CONFIG_PATH)` → `broadcastConfig()` → `dm-config` signal → UI store `settings`.
+Write-back: `applyConfigToDisk(config, input, CONFIG_PATH)` in `src/config-io.ts` (called from service.ts RPC handler).
 
 `ConnectionStatus` type is defined in `ui/src/types.ts` (not the store).
 

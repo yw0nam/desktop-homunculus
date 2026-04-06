@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite dev"
+    "dev": "vite dev",
+    "playwright": "playwright test"
   },
   "dependencies": {
     "@hmcs/sdk": "workspace:*",
@@ -15,6 +16,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.52.0",
     "@tailwindcss/vite": "^4.2.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

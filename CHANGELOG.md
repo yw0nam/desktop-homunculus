@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.2.0] - 2026-04-06
+
+### Added
+
+- **desktopmate-bridge**: Full E2E test suite covering WebSocket connection lifecycle (TC-LC-01~08), config file I/O (TC-CW-01~07), and Playwright browser UI tests (TC-UI-01~05). Run with `pnpm test:e2e` and `npx playwright test`.
+- **desktopmate-bridge**: Shared WebSocket helpers (`openWs`, `collectMessages`, `authorizedWs`, `sendChatTurn`) extracted to `tests/e2e/helpers/ws.ts` — all E2E tests now import from one place.
+- **desktopmate-bridge**: `VITE_TEST_MODE` mock SDK (`ui/test/mock-sdk/`) enables Playwright browser tests without a running backend.
+
+### Changed
+
+- **desktopmate-bridge**: `applyConfigToDisk` and `loadConfigFrom` extracted from `service.ts` into standalone `src/config-io.ts` — fully testable without the service import chain.
+- **desktopmate-bridge**: Vite test-mode aliases converted from object form to array form with `@hmcs/sdk/rpc` first, fixing prefix-match resolution bug.
+- **desktopmate-bridge**: `sessions.test.ts` refactored to import shared WS helpers from `helpers/ws.ts`.
+
 ## [0.1.0-alpha.10] - 2026-04-05
 
 ### Fixed
