@@ -4,14 +4,14 @@ import { render, fireEvent, cleanup, act } from "@testing-library/react";
 
 afterEach(() => cleanup());
 
-const mockWebview = {
+const mockWebview = vi.hoisted(() => ({
   info: vi.fn().mockResolvedValue({
     offset: [0, 0] as [number, number],
-    size: { width: 400, height: 300 },
-    viewportSize: { width: 800, height: 600 },
+    size: [400, 300] as [number, number],
+    viewportSize: [800, 600] as [number, number],
   }),
   setOffset: vi.fn().mockResolvedValue(undefined),
-};
+}));
 
 vi.mock("@hmcs/sdk", () => ({
   Webview: {
@@ -42,16 +42,7 @@ import { ControlBar } from "./ControlBar";
 import { useStore } from "../store";
 import { sendChatMessage, captureScreen, captureWindow, reconnect } from "../api";
 
-beforeEach(() => {
-  vi.mocked(useStore).mockReturnValue({
-    isTyping: false,
-    connectionStatus: "disconnected",
-    activeSessionId: null,
-    addUserMessage: vi.fn(),
-    captureMode: "fullscreen",
-    captureSelectedWindowId: null,
-  });
-});
+beforeEach(() => mockStore());
 
 const noop = () => {};
 
@@ -193,14 +184,17 @@ describe("ControlBar — DH-BUG-15: dragPending mouseup listener leak", () => {
 });
 
 describe("ControlBar — DH-BUG-12: drag dynamic scale + RAF throttle", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     mockWebview.info.mockClear();
     mockWebview.setOffset.mockClear();
     mockWebview.info.mockResolvedValue({
       offset: [0, 0] as [number, number],
-      size: { width: 400, height: 300 },
-      viewportSize: { width: 800, height: 600 },
+      size: [400, 300] as [number, number],
+      viewportSize: [800, 600] as [number, number],
     });
+    // Restore Webview.current to return the shared mock (DH-BUG-15 overrides it)
+    const { Webview } = await import("@hmcs/sdk");
+    vi.mocked(Webview.current)!.mockReturnValue(mockWebview as ReturnType<typeof Webview.current>);
   });
 
   it("handleDragStart calls wv.info() to read offset, size, viewportSize", async () => {
@@ -246,7 +240,7 @@ describe("ControlBar — DH-BUG-11: send with capture returns ImageContent objec
   });
 
   it("does not capture when captureActive=false", async () => {
-    mockStore();
+    mockStore({ connectionStatus: "connected" });
     const { getByPlaceholderText, getByText } = renderControlBar({ captureActive: false });
     fireEvent.change(getByPlaceholderText("Enter message..."), { target: { value: "hello" } });
     fireEvent.click(getByText("Send"));
@@ -258,7 +252,7 @@ describe("ControlBar — DH-BUG-11: send with capture returns ImageContent objec
   });
 
   it("captures fullscreen and attaches ImageContent when captureActive=true and captureMode=fullscreen", async () => {
-    mockStore();
+    mockStore({ connectionStatus: "connected" });
     const { getByPlaceholderText, getByText } = renderControlBar({ captureActive: true });
     fireEvent.change(getByPlaceholderText("Enter message..."), { target: { value: "hello" } });
     fireEvent.click(getByText("Send"));
@@ -274,7 +268,7 @@ describe("ControlBar — DH-BUG-11: send with capture returns ImageContent objec
   });
 
   it("captures window and attaches ImageContent when captureActive=true and captureMode=window with selectedWindowId", async () => {
-    mockStore({ captureMode: "window", captureSelectedWindowId: "win-42" });
+    mockStore({ connectionStatus: "connected", captureMode: "window", captureSelectedWindowId: "win-42" });
     const { getByPlaceholderText, getByText } = renderControlBar({ captureActive: true });
     fireEvent.change(getByPlaceholderText("Enter message..."), { target: { value: "hello" } });
     fireEvent.click(getByText("Send"));
@@ -290,7 +284,7 @@ describe("ControlBar — DH-BUG-11: send with capture returns ImageContent objec
   });
 
   it("sends without images when captureMode=window but no window selected", async () => {
-    mockStore({ captureMode: "window" });
+    mockStore({ connectionStatus: "connected", captureMode: "window" });
     const { getByPlaceholderText, getByText } = renderControlBar({ captureActive: true });
     fireEvent.change(getByPlaceholderText("Enter message..."), { target: { value: "hello" } });
     fireEvent.click(getByText("Send"));
@@ -298,6 +292,58 @@ describe("ControlBar — DH-BUG-11: send with capture returns ImageContent objec
     await vi.waitFor(() => {
       expect(captureWindow).not.toHaveBeenCalled();
       expect(sendChatMessage).toHaveBeenCalledWith(undefined, "hello", undefined);
+    });
+  });
+});
+
+describe("ControlBar — Send button disabled when disconnected", () => {
+  it("Send button is disabled when connectionStatus is 'disconnected'", () => {
+    mockStore({ connectionStatus: "disconnected" });
+    const { getByText } = renderControlBar();
+    const btn = getByText("Send") as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+  });
+
+  it("Send button is disabled when connectionStatus is 'restart-required'", () => {
+    mockStore({ connectionStatus: "restart-required" });
+    const { getByText } = renderControlBar();
+    const btn = getByText("Send") as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+  });
+
+  it("Send button is enabled when connected and input has text", () => {
+    mockStore({ connectionStatus: "connected" });
+    const { getByText, getByPlaceholderText } = renderControlBar();
+    fireEvent.change(getByPlaceholderText("Enter message..."), { target: { value: "hello" } });
+    const btn = getByText("Send") as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+  });
+
+  it("Enter key does not call sendChatMessage when disconnected", async () => {
+    vi.mocked(sendChatMessage).mockClear();
+    const addUserMessage = vi.fn();
+    mockStore({ connectionStatus: "disconnected", addUserMessage });
+    const { getByPlaceholderText } = renderControlBar();
+    const input = getByPlaceholderText("Enter message...");
+    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    // Give async handleSend a chance to execute (it shouldn't)
+    await new Promise((r) => setTimeout(r, 50));
+    expect(sendChatMessage).not.toHaveBeenCalled();
+    expect(addUserMessage).not.toHaveBeenCalled();
+  });
+
+  it("Enter key sends message when connected", async () => {
+    vi.mocked(sendChatMessage).mockClear();
+    const addUserMessage = vi.fn();
+    mockStore({ connectionStatus: "connected", addUserMessage });
+    const { getByPlaceholderText } = renderControlBar();
+    const input = getByPlaceholderText("Enter message...");
+    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await vi.waitFor(() => {
+      expect(addUserMessage).toHaveBeenCalledWith("hello");
+      expect(sendChatMessage).toHaveBeenCalled();
     });
   });
 });

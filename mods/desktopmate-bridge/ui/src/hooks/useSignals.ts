@@ -13,7 +13,7 @@ function subscribe<T>(
 }
 
 export function useSignals(): void {
-  const { setSettings, setConnectionStatus, startStreaming, appendStreamChunk, finalizeMessage, setSessions, settings } =
+  const { setSettings, setConnectionStatus, startStreaming, appendStreamChunk, finalizeMessage, setSessions, resetStreaming, settings } =
     useStore();
 
   useEffect(() => {
@@ -38,7 +38,12 @@ export function useSignals(): void {
 
       subscribe<{ status: ConnectionStatus }>(
         "dm-connection-status",
-        ({ status }) => setConnectionStatus(status),
+        ({ status }) => {
+          setConnectionStatus(status);
+          if (status === "disconnected" || status === "restart-required") {
+            resetStreaming();
+          }
+        },
       ),
 
       subscribe<{ turn_id: string; session_id: string }>(

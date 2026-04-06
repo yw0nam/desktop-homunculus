@@ -27,6 +27,7 @@ interface StoreState {
   setCaptureWindowList: (windows: { id: string; title: string }[]) => void;
   setCaptureSelectedWindowId: (id: string | null) => void;
   setCapturePreview: (base64: string | null) => void;
+  resetStreaming: () => void;
 }
 
 export const useStore = create<StoreState>((set) => ({
@@ -104,4 +105,14 @@ export const useStore = create<StoreState>((set) => ({
   setCaptureWindowList: (captureWindowList) => set({ captureWindowList }),
   setCaptureSelectedWindowId: (captureSelectedWindowId) => set({ captureSelectedWindowId }),
   setCapturePreview: (capturePreview) => set({ capturePreview }),
+  resetStreaming: () =>
+    set((s) => {
+      if (!s.isTyping && !s.messages.some((m) => m.streaming)) return s;
+      return {
+        isTyping: false,
+        messages: s.messages.map((m) =>
+          m.streaming ? { ...m, streaming: false } : m,
+        ),
+      };
+    }),
 }));

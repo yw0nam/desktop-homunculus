@@ -114,6 +114,33 @@ describe("store — session switch", () => {
   });
 });
 
+describe("store — resetStreaming", () => {
+  it("resets isTyping to false", () => {
+    useStore.getState().startStreaming("t1", "s1");
+    expect(useStore.getState().isTyping).toBe(true);
+    useStore.getState().resetStreaming();
+    expect(useStore.getState().isTyping).toBe(false);
+  });
+
+  it("sets streaming:false on all streaming messages", () => {
+    useStore.getState().startStreaming("t1", "s1");
+    useStore.getState().startStreaming("t2", "s1");
+    expect(useStore.getState().messages.filter((m) => m.streaming)).toHaveLength(2);
+    useStore.getState().resetStreaming();
+    expect(useStore.getState().messages.every((m) => !m.streaming)).toBe(true);
+  });
+
+  it("does not affect non-streaming messages", () => {
+    useStore.getState().addUserMessage("hello");
+    useStore.getState().startStreaming("t1", "s1");
+    useStore.getState().resetStreaming();
+    const msgs = useStore.getState().messages;
+    expect(msgs).toHaveLength(2);
+    expect(msgs[0].role).toBe("user");
+    expect(msgs[1].streaming).toBe(false);
+  });
+});
+
 describe("store — restart-required status", () => {
   it("setConnectionStatus restart-required reflects in store", () => {
     useStore.getState().setConnectionStatus("restart-required");

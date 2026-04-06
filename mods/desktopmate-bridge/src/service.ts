@@ -18,7 +18,7 @@ interface RetryState {
 }
 
 function shouldRetry(code: number): boolean {
-  return code === 4000 || code === 1011;
+  return code === 4000 || code === 1011 || code === 1006;
 }
 
 function nextRetryDelay(state: RetryState): number | null {
@@ -100,10 +100,12 @@ let _authFailed = false;
 let _connectionStatus: "connected" | "disconnected" | "restart-required" = "disconnected";
 let _ttsQueue!: TtsChunkQueue;
 
-function sendWsMessage(payload: unknown): void {
+function sendWsMessage(payload: unknown): boolean {
   if (_ws?.readyState === WebSocket.OPEN) {
     _ws.send(JSON.stringify(payload));
+    return true;
   }
+  return false;
 }
 
 function startRpcServer(config: Config) {
@@ -118,7 +120,7 @@ function startRpcServer(config: Config) {
       })).optional(),
     }),
     handler: async ({ content, session_id, images }) => {
-      sendWsMessage({
+      const sent = sendWsMessage({
         type: "chat_message",
         content,
         session_id,
@@ -127,14 +129,14 @@ function startRpcServer(config: Config) {
         reference_id: config.tts.reference_id || undefined,
         images,
       });
-      return { ok: true };
+      return { ok: sent };
     },
   });
   const interruptStream = rpc.method({
     description: "Interrupt current AI stream",
     handler: async () => {
-      sendWsMessage({ type: "interrupt_stream" });
-      return { ok: true };
+      const sent = sendWsMessage({ type: "interrupt_stream" });
+      return { ok: sent };
     },
   });
   const updateConfig = rpc.method({
@@ -229,6 +231,10 @@ async function connectWithRetry(
         agent_id: config.fastapi.agent_id,
       }),
     );
+  });
+
+  ws.addEventListener("error", (event) => {
+    console.error("[desktopmate-bridge] WebSocket error:", event);
   });
 
   ws.addEventListener("message", (event) => {
