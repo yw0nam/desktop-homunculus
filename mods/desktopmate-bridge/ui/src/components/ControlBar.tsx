@@ -135,9 +135,9 @@ export function ControlBar({
       const info = await wv.info();
       if (!dragPending.current) return;
       const scale =
-        info.size?.width > 0 && info.viewportSize?.width
-          ? info.viewportSize.width / info.size.width
-          : 0.002;
+        (info.size?.[0] ?? 0) > 0 && info.viewportSize?.[0]
+          ? info.viewportSize[0] / info.size[0]
+          : 1.0;
       dragState.current = {
         startX: e.clientX,
         startY: e.clientY,
@@ -228,7 +228,7 @@ export function ControlBar({
           <button
             className="text-white/80 text-xs px-2 py-1 hover:text-white disabled:opacity-30"
             onClick={handleSend}
-            disabled={!input.trim()}
+            disabled={!input.trim() || connectionStatus !== "connected"}
           >
             Send
           </button>
