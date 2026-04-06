@@ -48,7 +48,12 @@ export function applyConfigToDisk(
 
 /**
  * Reads and parses a YAML config file at `configPath`.
+ * Throws if the file is empty or not a valid YAML object.
  */
 export function loadConfigFrom(configPath: string): Config {
-  return yaml.load(readFileSync(configPath, "utf-8")) as Config;
+  const parsed = yaml.load(readFileSync(configPath, "utf-8"));
+  if (parsed === null || parsed === undefined || typeof parsed !== "object") {
+    throw new Error(`Invalid config at ${configPath}: expected a YAML object, got ${String(parsed)}`);
+  }
+  return parsed as Config;
 }

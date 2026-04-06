@@ -18,7 +18,6 @@ import {
 } from "../../src/config-io.js";
 import {
   FASTAPI_URL,
-  WS_URL,
   USER_ID,
   AGENT_ID,
   authorizedWs,
