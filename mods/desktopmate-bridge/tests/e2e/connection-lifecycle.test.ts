@@ -6,7 +6,6 @@
 import { describe, it, expect } from "vitest";
 import {
   FASTAPI_URL,
-  TOKEN,
   USER_ID,
   AGENT_ID,
   openWs,

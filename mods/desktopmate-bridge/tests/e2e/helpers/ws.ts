@@ -28,6 +28,7 @@ export function collectMessages(
   return new Promise((resolve, reject) => {
     const msgs: WsMsg[] = [];
     const timer = setTimeout(() => {
+      ws.removeEventListener("message", onMessage);
       reject(
         new Error(
           `Timeout after ${timeoutMs}ms. Collected: ${JSON.stringify(msgs)}`,
@@ -51,6 +52,7 @@ export function collectMessages(
     ws.addEventListener("message", onMessage);
     ws.addEventListener("error", () => {
       clearTimeout(timer);
+      ws.removeEventListener("message", onMessage);
       reject(new Error(`WebSocket error while collecting messages`));
     }, { once: true });
   });
@@ -59,10 +61,10 @@ export function collectMessages(
 export function openWs(): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(WS_URL);
-    ws.addEventListener("open", () => resolve(ws));
+    ws.addEventListener("open", () => resolve(ws), { once: true });
     ws.addEventListener("error", () =>
       reject(new Error(`Failed to connect to ${WS_URL}`)),
-    );
+    { once: true });
   });
 }
 
