@@ -1,36 +1,14 @@
-import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import yaml from "js-yaml";
 import { signals, Vrm, type TimelineKeyframe, type TransformArgs, preferences, repeat, sleep } from "@hmcs/sdk";
 import { rpc } from "@hmcs/sdk/rpc";
 import { z } from "zod";
 import { listWindows, captureScreen, captureWindow } from "./screen-capture.js";
 import { TtsChunkQueue, type TtsChunk } from "./tts-chunk-queue.js";
+import { type Config, applyConfigToDisk, loadConfigFrom } from "./config-io.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = resolve(__dirname, "../config.yaml");
-
-interface Config {
-  fastapi: {
-    ws_url: string;
-    rest_url: string;
-    token: string;
-    user_id: string;
-    agent_id: string;
-  };
-  homunculus: {
-    api_url: string;
-  };
-  tts: {
-    reference_id: string;
-  };
-}
-
-function loadConfig(): Config {
-  const raw = yaml.load(readFileSync(CONFIG_PATH, "utf-8")) as Config;
-  return raw;
-}
 
 const MAX_RETRIES = 3;
 const RETRY_DELAYS_MS = [1000, 2000, 3000];
@@ -173,14 +151,7 @@ function startRpcServer(config: Config) {
     // JS objects are reference-passed, so mutating `config` here updates the same
     // object held by `connectAndServe` — changes take effect for subsequent operations.
     handler: async (input) => {
-      config.fastapi.user_id = input.user_id;
-      config.fastapi.agent_id = input.agent_id;
-      config.fastapi.rest_url = input.fastapi_rest_url;
-      config.fastapi.ws_url = input.fastapi_ws_url;
-      config.fastapi.token = input.fastapi_token;
-      config.homunculus.api_url = input.homunculus_api_url;
-      config.tts.reference_id = input.tts_reference_id;
-      writeFileSync(CONFIG_PATH, yaml.dump(config), "utf-8");
+      applyConfigToDisk(config, input, CONFIG_PATH);
       await broadcastConfig(config);
       return { ok: true };
     },
@@ -356,7 +327,7 @@ async function connectAndServe(config: Config, vrm: Vrm): Promise<void> {
 }
 
 // --- entry point ---
-const config = loadConfig();
+const config = loadConfigFrom(CONFIG_PATH);
 const vrm = await spawnCharacter();              // VRM spawned first
 _ttsQueue = createTtsQueue(vrm);
 connectAndServe(config, vrm).catch(console.error); // fire-and-forget: WS + RPC
