@@ -11,7 +11,6 @@ import type {
   SdkAdapter,
   VrmHandle,
   VrmEvents,
-  VrmStateChangeEvent,
   VrmaPlayRequest,
   TimelineKeyframe,
   SpeakTimelineOptions,
@@ -19,18 +18,6 @@ import type {
   RpcServeOptions,
   RpcServer,
 } from "./sdk-adapter.js";
-
-class RealVrmEvents implements VrmEvents {
-  constructor(private readonly src: import("@hmcs/sdk").VrmEventSource) {}
-
-  on(event: "state-change", callback: (e: VrmStateChangeEvent) => void | Promise<void>): void {
-    this.src.on(event, callback);
-  }
-
-  close(): void {
-    this.src.close();
-  }
-}
 
 class RealVrmHandle implements VrmHandle {
   constructor(private readonly vrm: Vrm) {}
@@ -56,31 +43,33 @@ class RealVrmHandle implements VrmHandle {
   }
 
   events(): VrmEvents {
-    return new RealVrmEvents(this.vrm.events());
+    const src = this.vrm.events();
+    return {
+      on(event: "state-change", handler: (e: { state: string }) => void): void {
+        src.on(event, handler);
+      },
+    };
   }
 }
 
-export const realAdapter: SdkAdapter = {
+export class RealAdapter implements SdkAdapter {
   async signalSend<V>(signal: string, payload: V): Promise<void> {
-    await signals.send(signal, payload);
-  },
+    await signals.send(signal, payload as never);
+  }
 
   async vrmSpawn(assetId: string, options?: SpawnVrmOptions): Promise<VrmHandle> {
-    const vrm = await Vrm.spawn(assetId, options);
-    return new RealVrmHandle(vrm);
-  },
+    return new RealVrmHandle(await Vrm.spawn(assetId, options));
+  }
 
   async rpcServe(options: RpcServeOptions): Promise<RpcServer> {
     return rpc.serve(options);
-  },
+  }
 
   async preferencesLoad<V>(key: string): Promise<V | undefined> {
     return preferences.load<V>(key);
-  },
+  }
 
-  repeat: {
-    forever: () => sdkRepeat.forever(),
-  },
+  repeat = { forever: () => sdkRepeat.forever() };
 
-  sleep: (ms: number) => sdkSleep(ms).then(() => undefined),
-};
+  sleep = (ms: number): Promise<void> => sdkSleep(ms).then(() => undefined);
+}
