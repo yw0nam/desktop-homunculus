@@ -15,6 +15,7 @@ import {
   callMockRpc,
   resetMockAdapter,
 } from "../../src/mock-adapter.js";
+import { MockWebSocket } from "./helpers/mock-websocket.js";
 import type { Config } from "../../src/config-io.js";
 
 // Prevent real filesystem writes from updateConfig handler
@@ -34,20 +35,6 @@ vi.mock("../../src/config-io.js", async (importOriginal) => {
     },
   };
 });
-
-// ---------------------------------------------------------------------------
-// MockWebSocket — prevents real network calls
-// ---------------------------------------------------------------------------
-
-class MockWebSocket {
-  static OPEN = 1;
-  readyState = 0;
-  onclose: ((e: unknown) => void) | null = null;
-  addEventListener(_event: string, _handler: unknown) {}
-  removeEventListener(_event: string, _handler: unknown) {}
-  send(_data: string) {}
-  close() { this.readyState = 3; }
-}
 
 // ---------------------------------------------------------------------------
 // Fixtures

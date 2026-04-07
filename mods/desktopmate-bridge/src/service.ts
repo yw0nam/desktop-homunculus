@@ -276,7 +276,7 @@ async function handleClose(
     return;
   }
 
-  await new Promise((r) => setTimeout(r, delay));
+  await adapter.sleep(delay);
   await connectWithRetry(config, vrm, adapter, { attempts: retryState.attempts + 1 });
 }
 
