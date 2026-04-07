@@ -67,7 +67,8 @@ desktopmate-bridge/
 │   ├── unit/               # Unit tests (no external deps)
 │   └── e2e/                # E2E tests (require real FastAPI backend)
 │       ├── helpers/ws.ts   # Shared WS helpers (openWs, collectMessages, authorizedWs, sendChatTurn)
-│       ├── connection-lifecycle.test.ts  # TC-LC-01~08
+│       ├── connection-lifecycle.test.ts  # TC-LC-01~07
+│       ├── session-continuity.test.ts    # TC-LC-08 (session continuity after reconnect)
 │       ├── config-write.test.ts          # TC-CW-01~07
 │       └── ui-browser.spec.ts            # TC-UI-01~05 (Playwright)
 ├── ui/                     # React chat UI (Vite app)
