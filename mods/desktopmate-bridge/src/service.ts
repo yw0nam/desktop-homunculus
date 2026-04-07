@@ -35,7 +35,8 @@ export async function handleMessage(
   let msg: Record<string, unknown>;
   try {
     msg = JSON.parse(event.data as string) as Record<string, unknown>;
-  } catch {
+  } catch (err) {
+    console.error("[desktopmate-bridge] Failed to parse WebSocket frame:", err);
     await adapter.signalSend("dm-connection-status", { status: "error" });
     return;
   }
@@ -197,7 +198,9 @@ function startRpcServer(config: Config, vrm: VrmHandle, adapter: SdkAdapter): Pr
         _ws.close();
       }
       await adapter.signalSend("dm-connection-status", { status: "disconnected" });
-      connectWithRetry(config, vrm, adapter, { attempts: 0 }).catch(console.error);
+      connectWithRetry(config, vrm, adapter, { attempts: 0 }).catch((err: unknown) => {
+        console.error("[desktopmate-bridge] reconnect failed:", err);
+      });
       return { ok: true };
     },
   });
@@ -241,7 +244,9 @@ async function connectWithRetry(
   });
 
   ws.addEventListener("message", (event) => {
-    handleMessage(event, config, adapter).catch(console.error);
+    handleMessage(event, config, adapter).catch((err: unknown) => {
+      console.error("[desktopmate-bridge] handleMessage failed:", err, "data:", event.data);
+    });
   });
 
   ws.addEventListener("close", async (event) => {
@@ -264,6 +269,9 @@ async function handleClose(
   // spec: 4002 wait stream_end, 4003 normal close, 4004 no-op
   if (code === 4002 || code === 4003 || code === 4004) return;
   if (!shouldRetry(code)) {
+    console.warn(
+      `[desktopmate-bridge] WebSocket closed (code=${code}, reason="${event.reason}", wasClean=${event.wasClean}) — no retry`,
+    );
     _connectionStatus = "disconnected";
     await adapter.signalSend("dm-connection-status", { status: "disconnected" });
     return;
@@ -271,6 +279,9 @@ async function handleClose(
 
   const delay = nextRetryDelay(retryState);
   if (delay === null) {
+    console.error(
+      `[desktopmate-bridge] WebSocket retry exhausted after ${MAX_RETRIES} attempts (last code=${code})`,
+    );
     _connectionStatus = "restart-required";
     await adapter.signalSend("dm-connection-status", { status: "restart-required" });
     return;
@@ -311,7 +322,9 @@ async function spawnCharacter(adapter: SdkAdapter): Promise<VrmHandle> {
   await vrm.playVrma({ asset: "vrma:idle-maid", ...animOpts });
 
   vrm.events().on("state-change", (e) =>
-    handleVrmStateChange(e, vrm, animOpts, adapter).catch(console.error),
+    handleVrmStateChange(e, vrm, animOpts, adapter).catch((err: unknown) => {
+      console.error("[desktopmate-bridge] VRM state-change handler failed for state:", e.state, err);
+    }),
   );
 
   return vrm;
