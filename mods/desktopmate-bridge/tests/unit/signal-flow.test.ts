@@ -10,21 +10,8 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
 import { handleMessage, connectAndServe } from "../../src/service.js";
 import { MockAdapter, onMockSignal, resetMockAdapter } from "../../src/mock-adapter.js";
+import { MockWebSocket } from "./helpers/mock-websocket.js";
 import type { Config } from "../../src/config-io.js";
-
-// ---------------------------------------------------------------------------
-// MockWebSocket — never connects, prevents real network calls
-// ---------------------------------------------------------------------------
-
-class MockWebSocket {
-  static OPEN = 1;
-  readyState = 0;
-  onclose: ((e: unknown) => void) | null = null;
-  addEventListener(_event: string, _handler: unknown) {}
-  removeEventListener(_event: string, _handler: unknown) {}
-  send(_data: string) {}
-  close() { this.readyState = 3; }
-}
 
 // ---------------------------------------------------------------------------
 // Fixtures

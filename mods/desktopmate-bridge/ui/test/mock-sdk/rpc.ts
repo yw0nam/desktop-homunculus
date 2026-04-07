@@ -27,6 +27,7 @@ declare global {
     __testConfig__: DmConfig;
     __reconnectCallCount__: number;
     __reconnectDelay__: number;
+    __sentMessages__: Array<{ content: string; session_id?: string; images?: unknown[] }>;
   }
 }
 
@@ -34,6 +35,7 @@ if (window.__connectionStatus__ === undefined) window.__connectionStatus__ = "di
 if (window.__testConfig__ === undefined) window.__testConfig__ = { ...DEFAULT_CONFIG };
 if (window.__reconnectCallCount__ === undefined) window.__reconnectCallCount__ = 0;
 if (window.__reconnectDelay__ === undefined) window.__reconnectDelay__ = 0;
+if (!window.__sentMessages__) window.__sentMessages__ = [];
 
 export interface RpcCallOptions {
   modName: string;
@@ -59,6 +61,12 @@ function isInvalidWsUrl(url: string): boolean {
   return url.includes("invalid-host") || url.includes(":9999");
 }
 
+async function handleSendMessage(body: unknown): Promise<unknown> {
+  const msg = body as { content: string; session_id?: string; images?: unknown[] };
+  window.__sentMessages__.push(msg);
+  return { ok: true };
+}
+
 async function handleReconnect(): Promise<unknown> {
   window.__reconnectCallCount__ += 1;
   const delay = window.__reconnectDelay__ ?? 0;
@@ -81,6 +89,8 @@ export namespace rpc {
         return handleGetStatus() as Promise<T>;
       case "updateConfig":
         return handleUpdateConfig(options.body) as Promise<T>;
+      case "sendMessage":
+        return handleSendMessage(options.body) as Promise<T>;
       case "reconnect":
         return handleReconnect() as Promise<T>;
       default:

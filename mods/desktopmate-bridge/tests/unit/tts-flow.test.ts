@@ -12,24 +12,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { handleMessage, connectAndServe } from "../../src/service.js";
 import { MockAdapter, MockVrmHandle, onMockSignal, resetMockAdapter } from "../../src/mock-adapter.js";
+import { MockWebSocket } from "./helpers/mock-websocket.js";
 import { TtsChunkQueue } from "../../src/tts-chunk-queue.js";
 import type { TtsChunk } from "../../src/tts-chunk-queue.js";
 import type { TimelineKeyframe } from "@hmcs/sdk";
 import type { Config } from "../../src/config-io.js";
-
-// ---------------------------------------------------------------------------
-// MockWebSocket — prevents real network calls
-// ---------------------------------------------------------------------------
-
-class MockWebSocket {
-  static OPEN = 1;
-  readyState = 0;
-  onclose: ((e: unknown) => void) | null = null;
-  addEventListener(_event: string, _handler: unknown) {}
-  removeEventListener(_event: string, _handler: unknown) {}
-  send(_data: string) {}
-  close() { this.readyState = 3; }
-}
 
 // ---------------------------------------------------------------------------
 // Fixtures

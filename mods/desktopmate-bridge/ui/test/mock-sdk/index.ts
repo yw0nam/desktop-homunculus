@@ -33,10 +33,16 @@ const bus = new SignalBus();
 declare global {
   interface Window {
     __signalBus__: SignalBus;
+    __ttsChunkCount__: number;
   }
 }
 
 window.__signalBus__ = bus;
+
+if (window.__ttsChunkCount__ === undefined) window.__ttsChunkCount__ = 0;
+bus.on("dm-tts-chunk", () => {
+  window.__ttsChunkCount__ = (window.__ttsChunkCount__ ?? 0) + 1;
+});
 
 export namespace signals {
   export function stream<V>(
