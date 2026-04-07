@@ -287,17 +287,18 @@ async function handleVrmStateChange(
   e: { state: string },
   vrm: VrmHandle,
   animOpts: { repeat: VrmaRepeat; transitionSecs: number },
+  adapter: SdkAdapter,
 ): Promise<void> {
   if (e.state === "idle") {
     await vrm.playVrma({ asset: "vrma:idle-maid", ...animOpts });
-    await new Promise((r) => setTimeout(r, 500));
+    await adapter.sleep(500);
     await vrm.lookAtCursor();
   } else if (e.state === "drag") {
     await vrm.unlook();
     await vrm.playVrma({ asset: "vrma:grabbed", ...animOpts, resetSpringBones: true });
   } else if (e.state === "sitting") {
     await vrm.playVrma({ asset: "vrma:idle-sitting", ...animOpts });
-    await new Promise((r) => setTimeout(r, 500));
+    await adapter.sleep(500);
     await vrm.lookAtCursor();
   }
 }
@@ -310,7 +311,7 @@ async function spawnCharacter(adapter: SdkAdapter): Promise<VrmHandle> {
   await vrm.playVrma({ asset: "vrma:idle-maid", ...animOpts });
 
   vrm.events().on("state-change", (e) =>
-    handleVrmStateChange(e, vrm, animOpts).catch(console.error),
+    handleVrmStateChange(e, vrm, animOpts, adapter).catch(console.error),
   );
 
   return vrm;
