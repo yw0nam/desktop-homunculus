@@ -357,5 +357,7 @@ if (isMain) {
   const { RealAdapter } = await import("./real-adapter.js");
   const adapter = new RealAdapter();
   const config = loadConfigFrom(CONFIG_PATH);
-  connectAndServe(config, adapter).catch(console.error);
+  connectAndServe(config, adapter).catch((err: unknown) => {
+    console.error("[desktopmate-bridge] connectAndServe failed:", err);
+  });
 }
