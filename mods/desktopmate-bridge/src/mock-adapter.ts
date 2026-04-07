@@ -79,10 +79,7 @@ export class MockAdapter implements SdkAdapter {
 
   async rpcServe(options: RpcServeOptions): Promise<RpcServer> {
     for (const [name, entry] of Object.entries(options.methods)) {
-      const handler =
-        typeof entry === "function"
-          ? (entry as RpcHandler)
-          : (entry as { handler: RpcHandler }).handler;
+      const handler = (entry as { handler: RpcHandler }).handler;
       this.rpcHandlers.set(name, handler);
     }
     return { port: 0, close: () => Promise.resolve() };
