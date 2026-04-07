@@ -13,25 +13,47 @@ import type {
   VrmaPlayRequest,
   TimelineKeyframe,
   SpeakTimelineOptions,
-  VrmEventSource,
   VrmaRepeat,
   SpawnVrmOptions,
 } from "@hmcs/sdk";
 import type { RpcServeOptions, RpcServer } from "@hmcs/sdk/rpc";
 
-export type { VrmaPlayRequest, TimelineKeyframe, SpeakTimelineOptions, VrmEventSource, VrmaRepeat, SpawnVrmOptions };
+export type { VrmaPlayRequest, TimelineKeyframe, SpeakTimelineOptions, VrmaRepeat, SpawnVrmOptions };
 export type { RpcServeOptions, RpcServer };
+
+/**
+ * State-change event emitted when a VRM character transitions between states
+ * (e.g. "idle", "drag", "sitting").
+ *
+ * Defined locally so mock-adapter.ts has no runtime dependency on @hmcs/sdk.
+ */
+export interface VrmStateChangeEvent {
+  state: string;
+}
+
+/**
+ * Minimal event subscription interface for a VRM character.
+ *
+ * Defined as a local interface (not VrmEventSource from @hmcs/sdk) so that
+ * mock implementations can satisfy it without importing the SDK at runtime.
+ */
+export interface VrmEvents {
+  /** Register a callback for state-change events. */
+  on(event: "state-change", callback: (event: VrmStateChangeEvent) => void | Promise<void>): void;
+  /** Close the underlying event stream. */
+  close(): void;
+}
 
 /**
  * A handle to a spawned VRM character, exposing the subset of Vrm methods
  * used by desktopmate-bridge service logic.
  *
- * Operations (4):
- *   1. playVrma         — play a VRMA animation
+ * Operations (5):
+ *   1. playVrma          — play a VRMA animation
  *   2. speakWithTimeline — speak audio with lip-sync keyframes
- *   3. lookAtCursor     — enable gaze tracking toward cursor
- *   4. unlook           — disable gaze tracking
- *   5. events           — subscribe to VRM state-change events
+ *   3. lookAtCursor      — enable gaze tracking toward cursor
+ *   4. unlook            — disable gaze tracking
+ *   5. events            — subscribe to VRM state-change events
  */
 export interface VrmHandle {
   /** Play a VRMA animation on this character. */
@@ -50,8 +72,8 @@ export interface VrmHandle {
   /** Disable gaze-tracking for this character. */
   unlook(): Promise<void>;
 
-  /** Subscribe to events emitted by this character (e.g. "state-change"). */
-  events(): VrmEventSource;
+  /** Subscribe to events emitted by this character. */
+  events(): VrmEvents;
 }
 
 /**
