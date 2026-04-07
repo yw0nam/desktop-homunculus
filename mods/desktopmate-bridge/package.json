@@ -1,6 +1,6 @@
 {
   "name": "@hmcs/desktopmate-bridge",
-  "version": "0.1.0",
+  "version": "0.1.0.1",
   "description": "FastAPI WebSocket bridge and chat UI for DesktopMate+",
   "license": "MIT",
   "type": "module",
