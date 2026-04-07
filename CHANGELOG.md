@@ -4,10 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [0.1.0.1] - 2026-04-07
 
-### Changed
+### For contributors
 
-- **desktopmate-bridge**: Split `connection-lifecycle.test.ts` (416→371 lines) by moving TC-LC-08 session-continuity tests into a new `tests/e2e/session-continuity.test.ts`.
-- **desktopmate-bridge**: Split `ControlBar.test.tsx` (432→351 lines) by moving reconnect tests (DH-BUG-13) into a new `ui/src/components/ControlBar.reconnect.test.tsx`.
+- **desktopmate-bridge**: Reorganized test files to stay within the 400-line limit (GP-13). TC-LC-08 session-continuity tests moved to `tests/e2e/session-continuity.test.ts`; DH-BUG-13 reconnect tests moved to `ui/src/components/ControlBar.reconnect.test.tsx`.
 
 ## [0.0.2.0] - 2026-04-06
 
