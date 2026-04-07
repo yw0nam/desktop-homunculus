@@ -4,16 +4,16 @@
  * Zero dependency on @hmcs/sdk at runtime. Activated when HMCS_MOCK=1.
  *
  * Test helpers:
- *   - onMockSignal(adapter, name)       — get collected signal payloads
- *   - callMockRpc(adapter, method, body) — invoke a registered RPC handler directly
- *   - resetMockAdapter(adapter)          — clear all adapter state between tests
+ *   - onMockSignal(name, cb)  — subscribe to signals emitted by the service
+ *   - callMockRpc(name, body) — invoke a registered RPC handler directly
+ *   - resetMockAdapter()      — clear all state between tests
  */
 
-import { vi } from "vitest";
 import type {
   SdkAdapter,
   VrmHandle,
   VrmEvents,
+  VrmStateChangeEvent,
   VrmaPlayRequest,
   TimelineKeyframe,
   SpeakTimelineOptions,
@@ -24,102 +24,168 @@ import type {
 } from "./sdk-adapter.js";
 
 // ---------------------------------------------------------------------------
+// Internal state
+// ---------------------------------------------------------------------------
+
+type SignalCallback = (payload: unknown) => void;
+type RpcHandler = (params: unknown) => Promise<unknown>;
+
+interface MockState {
+  signalListeners: Map<string, SignalCallback[]>;
+  rpcHandlers: Record<string, RpcHandler>;
+  spawnedVrms: MockVrmHandle[];
+  preferenceStore: Map<string, unknown>;
+}
+
+const _state: MockState = {
+  signalListeners: new Map(),
+  rpcHandlers: {},
+  spawnedVrms: [],
+  preferenceStore: new Map(),
+};
+
+// ---------------------------------------------------------------------------
+// MockVrmEvents
+// ---------------------------------------------------------------------------
+
+class MockVrmEvents implements VrmEvents {
+  private readonly listeners: Array<(e: VrmStateChangeEvent) => void | Promise<void>> = [];
+
+  on(_event: "state-change", callback: (e: VrmStateChangeEvent) => void | Promise<void>): void {
+    this.listeners.push(callback);
+  }
+
+  close(): void {
+    this.listeners.length = 0;
+  }
+
+  /** Trigger a state-change event (test helper). */
+  emit(event: VrmStateChangeEvent): void {
+    for (const cb of this.listeners) {
+      void cb(event);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // MockVrmHandle
 // ---------------------------------------------------------------------------
 
 export class MockVrmHandle implements VrmHandle {
-  readonly stateChangeHandlers: Array<(e: { state: string }) => void> = [];
+  readonly playVrmaCalls: VrmaPlayRequest[] = [];
+  readonly speakCalls: Array<{
+    audio: ArrayBuffer | Uint8Array;
+    keyframes: TimelineKeyframe[];
+    options?: SpeakTimelineOptions;
+  }> = [];
+  private readonly _events = new MockVrmEvents();
 
-  playVrma = vi.fn((_opts: VrmaPlayRequest): Promise<void> => Promise.resolve());
-  speakWithTimeline = vi.fn(
-    (_audio: ArrayBuffer | Uint8Array, _kf: TimelineKeyframe[], _opts?: SpeakTimelineOptions): Promise<void> =>
-      Promise.resolve(),
-  );
-  lookAtCursor = vi.fn((): Promise<void> => Promise.resolve());
-  unlook = vi.fn((): Promise<void> => Promise.resolve());
-
-  events(): VrmEvents {
-    return {
-      on: (_event: "state-change", handler: (e: { state: string }) => void) => {
-        this.stateChangeHandlers.push(handler);
-      },
-    };
+  playVrma(options: VrmaPlayRequest): Promise<void> {
+    this.playVrmaCalls.push(options);
+    return Promise.resolve();
   }
 
-  /** Trigger a state-change event on this handle (test helper). */
-  triggerStateChange(state: string): void {
-    for (const handler of this.stateChangeHandlers) {
-      handler({ state });
-    }
+  speakWithTimeline(
+    audio: ArrayBuffer | Uint8Array,
+    keyframes: TimelineKeyframe[],
+    options?: SpeakTimelineOptions,
+  ): Promise<void> {
+    this.speakCalls.push({ audio, keyframes, options });
+    return Promise.resolve();
+  }
+
+  lookAtCursor(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  unlook(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  events(): VrmEvents {
+    return this._events;
+  }
+
+  /** Emit a state-change event on this handle (test helper). */
+  emitStateChange(state: string): void {
+    this._events.emit({ state });
   }
 }
 
 // ---------------------------------------------------------------------------
-// MockAdapter
+// MockRpcServer
 // ---------------------------------------------------------------------------
 
-type RpcHandler = (params: unknown) => Promise<unknown>;
+class MockRpcServer implements RpcServer {
+  readonly port = 0;
 
-export class MockAdapter implements SdkAdapter {
-  readonly signals = new Map<string, unknown[]>();
-  readonly rpcHandlers = new Map<string, RpcHandler>();
-  readonly vrmHandles: MockVrmHandle[] = [];
-
-  async signalSend<V>(signal: string, payload: V): Promise<void> {
-    const arr = this.signals.get(signal) ?? [];
-    arr.push(payload);
-    this.signals.set(signal, arr);
+  close(): Promise<void> {
+    return Promise.resolve();
   }
+}
+
+// ---------------------------------------------------------------------------
+// mockAdapter
+// ---------------------------------------------------------------------------
+
+export const mockAdapter: SdkAdapter = {
+  async signalSend<V>(signal: string, payload: V): Promise<void> {
+    const listeners = _state.signalListeners.get(signal) ?? [];
+    for (const cb of listeners) {
+      cb(payload as unknown);
+    }
+  },
 
   async vrmSpawn(_assetId: string, _options?: SpawnVrmOptions): Promise<VrmHandle> {
     const handle = new MockVrmHandle();
-    this.vrmHandles.push(handle);
+    _state.spawnedVrms.push(handle);
     return handle;
-  }
+  },
 
   async rpcServe(options: RpcServeOptions): Promise<RpcServer> {
     for (const [name, entry] of Object.entries(options.methods)) {
-      const handler = (entry as { handler: RpcHandler }).handler;
-      this.rpcHandlers.set(name, handler);
+      const method = entry;
+      if (typeof method === "function") {
+        _state.rpcHandlers[name] = method as RpcHandler;
+      } else if (method !== null && typeof method === "object" && "handler" in method) {
+        _state.rpcHandlers[name] = (method as { handler: RpcHandler }).handler;
+      }
     }
-    return { port: 0, close: () => Promise.resolve() };
-  }
+    return new MockRpcServer();
+  },
 
-  async preferencesLoad<V>(_key: string): Promise<V | undefined> {
-    return undefined;
-  }
+  async preferencesLoad<V>(key: string): Promise<V | undefined> {
+    return _state.preferenceStore.get(key) as V | undefined;
+  },
 
-  repeat = {
+  repeat: {
     forever(): VrmaRepeat {
-      return { type: "forever" as const };
+      return { type: "forever" };
     },
-  };
+  },
 
-  sleep = (_ms: number): Promise<void> => Promise.resolve();
-
-  reset(): void {
-    this.signals.clear();
-    this.rpcHandlers.clear();
-    this.vrmHandles.length = 0;
-  }
-}
+  sleep(_ms: number): Promise<void> {
+    return Promise.resolve();
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Return the collected payloads for a signal emitted by the service.
+ * Subscribe to a signal emitted by the service under test.
  *
  * @example
  * ```typescript
- * const adapter = new MockAdapter();
- * // ... run service logic ...
- * expect(onMockSignal(adapter, "dm-connection-status")).toContainEqual({ status: "connected" });
+ * const received: unknown[] = [];
+ * onMockSignal("dm-connection-status", (p) => received.push(p));
  * ```
  */
-export function onMockSignal(adapter: MockAdapter, name: string): unknown[] {
-  return adapter.signals.get(name) ?? [];
+export function onMockSignal(name: string, callback: (payload: unknown) => void): void {
+  const list = _state.signalListeners.get(name) ?? [];
+  list.push(callback);
+  _state.signalListeners.set(name, list);
 }
 
 /**
@@ -127,23 +193,36 @@ export function onMockSignal(adapter: MockAdapter, name: string): unknown[] {
  *
  * @example
  * ```typescript
- * const result = await callMockRpc(adapter, "getStatus", {});
+ * const result = await callMockRpc("getStatus", {});
  * ```
  */
-export async function callMockRpc(
-  adapter: MockAdapter,
-  method: string,
-  params: unknown = {},
-): Promise<unknown> {
-  const handler = adapter.rpcHandlers.get(method);
-  if (!handler) throw new Error(`No RPC handler registered: ${method}`);
-  return handler(params);
+export async function callMockRpc(name: string, body: unknown = {}): Promise<unknown> {
+  const handler = _state.rpcHandlers[name];
+  if (!handler) throw new Error(`Mock RPC method not registered: ${name}`);
+  return handler(body);
 }
 
 /**
- * Clear all adapter state (signals, RPC handlers, VRM handles).
+ * Clear all mock state (signal listeners, RPC handlers, spawned VRMs, preferences).
  * Call in `beforeEach` to isolate tests.
  */
-export function resetMockAdapter(adapter: MockAdapter): void {
-  adapter.reset();
+export function resetMockAdapter(): void {
+  _state.signalListeners.clear();
+  _state.rpcHandlers = {};
+  _state.spawnedVrms.length = 0;
+  _state.preferenceStore.clear();
+}
+
+/**
+ * Set a preference value for the mock store (test setup helper).
+ */
+export function setMockPreference(key: string, value: unknown): void {
+  _state.preferenceStore.set(key, value);
+}
+
+/**
+ * Get the first spawned VRM handle (most tests only spawn one).
+ */
+export function getSpawnedVrm(index = 0): MockVrmHandle | undefined {
+  return _state.spawnedVrms[index];
 }

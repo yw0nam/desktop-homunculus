@@ -22,13 +22,26 @@ export type { VrmaPlayRequest, TimelineKeyframe, SpeakTimelineOptions, VrmaRepea
 export type { RpcServeOptions, RpcServer };
 
 /**
- * Minimal VRM event subscription interface.
+ * State-change event emitted when a VRM character transitions between states
+ * (e.g. "idle", "drag", "sitting").
  *
- * Defined locally (not VrmEventSource from @hmcs/sdk) so mock implementations
- * have no runtime dependency on the SDK.
+ * Defined locally so mock-adapter.ts has no runtime dependency on @hmcs/sdk.
+ */
+export interface VrmStateChangeEvent {
+  state: string;
+}
+
+/**
+ * Minimal event subscription interface for a VRM character.
+ *
+ * Defined as a local interface (not VrmEventSource from @hmcs/sdk) so that
+ * mock implementations can satisfy it without importing the SDK at runtime.
  */
 export interface VrmEvents {
-  on(event: "state-change", handler: (e: { state: string }) => void): void;
+  /** Register a callback for state-change events. */
+  on(event: "state-change", callback: (event: VrmStateChangeEvent) => void | Promise<void>): void;
+  /** Close the underlying event stream. */
+  close(): void;
 }
 
 /**
@@ -59,7 +72,7 @@ export interface VrmHandle {
   /** Disable gaze-tracking for this character. */
   unlook(): Promise<void>;
 
-  /** Subscribe to events emitted by this character (e.g. "state-change"). */
+  /** Subscribe to events emitted by this character. */
   events(): VrmEvents;
 }
 
