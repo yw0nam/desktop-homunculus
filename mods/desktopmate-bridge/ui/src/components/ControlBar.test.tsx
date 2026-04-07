@@ -327,8 +327,8 @@ describe("ControlBar — Send button disabled when disconnected", () => {
     const input = getByPlaceholderText("Enter message...");
     fireEvent.change(input, { target: { value: "hello" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    // Give async handleSend a chance to execute (it shouldn't)
-    await new Promise((r) => setTimeout(r, 50));
+    // Flush microtasks — handleSend returns early synchronously when disconnected
+    await Promise.resolve();
     expect(sendChatMessage).not.toHaveBeenCalled();
     expect(addUserMessage).not.toHaveBeenCalled();
   });
